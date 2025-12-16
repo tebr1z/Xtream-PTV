@@ -70,8 +70,10 @@ const M3ULogin = () => {
       {/* Top Navigation */}
       <header className="w-full flex items-center justify-between px-6 py-4 lg:px-10 border-b border-gray-200 dark:border-[#293836]">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-8 rounded-lg bg-[#19e6c4]/10 text-[#19e6c4]">
-            <span className="material-symbols-outlined text-2xl">play_circle</span>
+          <div className="size-8 text-primary">
+            <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
+            </svg>
           </div>
           <h1 className="text-slate-900 dark:text-white text-lg font-bold tracking-tight">M3U Player</h1>
         </div>

@@ -240,10 +240,10 @@ const AdminPanel = () => {
               <span className="material-symbols-outlined">menu</span>
             </button>
             <div className="flex items-center gap-4 text-white">
-              <div className="size-8 flex items-center justify-center bg-[#1b2725] rounded-full text-[#19e6c4]">
-                <span className="material-symbols-outlined text-[20px]">
-                  {activeTab === 'users' ? 'group' : 'analytics'}
-                </span>
+              <div className="size-8 text-primary">
+                <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
+                </svg>
               </div>
               <div>
                 <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">

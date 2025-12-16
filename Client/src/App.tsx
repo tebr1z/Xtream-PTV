@@ -6,6 +6,7 @@ import Auth from './components/Auth'
 import ChannelList from './components/ChannelList'
 import VideoPlayer from './components/VideoPlayer'
 import AdminPanel from './components/AdminPanel'
+import UserPanel from './components/UserPanel'
 import './App.css'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/channels" element={<ChannelList />} />
         <Route path="/player" element={<VideoPlayer />} />
         <Route path="/t4br1z" element={<AdminPanel />} />
+        <Route path="/user" element={<UserPanel />} />
       </Routes>
     </BrowserRouter>
   )

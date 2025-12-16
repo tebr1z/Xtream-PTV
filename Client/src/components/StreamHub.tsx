@@ -81,8 +81,10 @@ const StreamHub = () => {
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/10 px-6 py-4 lg:px-12 w-full">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-10 rounded-full bg-primary/20 text-primary">
-            <span className="material-symbols-outlined text-2xl">play_circle</span>
+          <div className="size-8 text-primary">
+            <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
+            </svg>
           </div>
           <h2 className="text-xl font-bold tracking-tight">StreamHub</h2>
         </div>

@@ -4,7 +4,7 @@ import { connectXtremeCode } from '../services/xtremeCodeService';
 
 type XtremeCodeCredentials = {
   serverUrl: string;
-  port: string;
+  tvName: string;
   username: string;
   password: string;
 };
@@ -13,7 +13,7 @@ const XtremeCodeLogin = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     serverUrl: '',
-    port: '',
+    tvName: '',
     username: '',
     password: '',
   });
@@ -39,7 +39,7 @@ const XtremeCodeLogin = () => {
       // API bağlantısı
       const credentials: XtremeCodeCredentials = {
         serverUrl: formData.serverUrl,
-        port: formData.port,
+        tvName: formData.tvName,
         username: formData.username,
         password: formData.password,
       };
@@ -48,7 +48,12 @@ const XtremeCodeLogin = () => {
 
       if (response.success) {
         // Başarılı giriş - bilgileri localStorage'a kaydet
-        localStorage.setItem('xtremeCodeCredentials', JSON.stringify(credentials));
+        // apiEndpoint'i response.data'dan al ve credentials'a ekle
+        const credentialsWithEndpoint = {
+          ...credentials,
+          apiEndpoint: response.data?.apiEndpoint || null
+        };
+        localStorage.setItem('xtremeCodeCredentials', JSON.stringify(credentialsWithEndpoint));
         localStorage.setItem('xtremeCodeConnected', 'true');
         
         // Dashboard'a yönlendir
@@ -88,57 +93,57 @@ const XtremeCodeLogin = () => {
           {/* Form Section */}
           <div className="px-8 pb-10">
             <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-              {/* Row 1: URL and Port */}
-              <div className="flex flex-col sm:flex-row gap-5">
-                {/* Server URL */}
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-white mb-2 ml-1">Sunucu URL</label>
-                  <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
-                    <input
-                      name="serverUrl"
-                      value={formData.serverUrl}
-                      onChange={handleChange}
-                      className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                      placeholder="http://domain.com"
-                      type="text"
-                      required
-                    />
-                    <div className="flex items-center justify-center px-4 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8]">
-                      <span className="material-symbols-outlined">public</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Port */}
-                <div className="w-full sm:w-32">
-                  <label className="block text-sm font-medium text-white mb-2 ml-1">Port</label>
-                  <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
-                    <input
-                      name="port"
-                      value={formData.port}
-                      onChange={handleChange}
-                      className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                      placeholder="8080"
-                      type="text"
-                      required
-                    />
-                    <div className="flex items-center justify-center px-3 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8]">
-                      <span className="material-symbols-outlined">dns</span>
-                    </div>
+              {/* Server URL */}
+              <div>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="serverUrl">Link</label>
+                <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                  <input
+                    id="serverUrl"
+                    name="serverUrl"
+                    value={formData.serverUrl}
+                    onChange={handleChange}
+                    className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
+                    placeholder="http://domain.com:port"
+                    type="text"
+                    required
+                  />
+                  <div className="flex items-center justify-center px-4 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8]">
+                    <span className="material-symbols-outlined">link</span>
                   </div>
                 </div>
               </div>
 
-              {/* Row 2: Username */}
+              {/* TV Name */}
               <div>
-                <label className="block text-sm font-medium text-white mb-2 ml-1">Kullanıcı Adı</label>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="tvName">TV Name</label>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
+                    id="tvName"
+                    name="tvName"
+                    value={formData.tvName}
+                    onChange={handleChange}
+                    className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
+                    placeholder="TV Name"
+                    type="text"
+                    required
+                  />
+                  <div className="flex items-center justify-center px-4 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8]">
+                    <span className="material-symbols-outlined">tv</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Username */}
+              <div>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="username">Username</label>
+                <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                  <input
+                    id="username"
                     name="username"
                     value={formData.username}
                     onChange={handleChange}
                     className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                    placeholder="Kullanıcı adınız"
+                    placeholder="Username"
                     type="text"
                     required
                   />
@@ -148,13 +153,14 @@ const XtremeCodeLogin = () => {
                 </div>
               </div>
 
-              {/* Row 3: Password */}
+              {/* Password */}
               <div>
                 <div className="flex justify-between items-center mb-2 ml-1">
-                  <label className="block text-sm font-medium text-white">Şifre</label>
+                  <label className="block text-sm font-medium text-white" htmlFor="password">Password</label>
                 </div>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
+                    id="password"
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
@@ -163,14 +169,16 @@ const XtremeCodeLogin = () => {
                     type={showPassword ? 'text' : 'password'}
                     required
                   />
-                  <div
+                  <button
+                    type="button"
                     className="flex items-center justify-center px-4 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8] cursor-pointer hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                   >
                     <span className="material-symbols-outlined">
                       {showPassword ? 'visibility' : 'visibility_off'}
                     </span>
-                  </div>
+                  </button>
                 </div>
               </div>
 
