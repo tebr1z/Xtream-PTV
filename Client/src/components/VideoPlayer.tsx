@@ -459,6 +459,23 @@ const VideoPlayer = () => {
     setIsPlaying(!isPlaying);
   };
 
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      } else if ((videoRef.current as any).webkitRequestFullscreen) {
+        // Safari
+        (videoRef.current as any).webkitRequestFullscreen();
+      } else if ((videoRef.current as any).mozRequestFullScreen) {
+        // Firefox
+        (videoRef.current as any).mozRequestFullScreen();
+      } else if ((videoRef.current as any).msRequestFullscreen) {
+        // IE/Edge
+        (videoRef.current as any).msRequestFullscreen();
+      }
+    }
+  };
+
   const handleBack = () => {
     navigate('/channels');
   };
@@ -678,7 +695,10 @@ const VideoPlayer = () => {
                   <button className="text-white/70 hover:text-white transition-colors flex items-center gap-1 text-sm font-medium border border-white/10 rounded px-2 py-1 bg-black/20">
                     HD <span className="material-symbols-outlined text-[16px]">expand_more</span>
                   </button>
-                  <button className="text-white hover:text-[#19e6c4] transition-colors">
+                  <button 
+                    onClick={handleFullscreen}
+                    className="text-white hover:text-[#19e6c4] transition-colors"
+                  >
                     <span className="material-symbols-outlined">fullscreen</span>
                   </button>
                 </div>
