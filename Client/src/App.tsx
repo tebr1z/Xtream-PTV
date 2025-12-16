@@ -4,6 +4,8 @@ import XtremeCodeLogin from './components/XtremeCodeLogin'
 import M3ULogin from './components/M3ULogin'
 import Auth from './components/Auth'
 import ChannelList from './components/ChannelList'
+import VideoPlayer from './components/VideoPlayer'
+import AdminPanel from './components/AdminPanel'
 import './App.css'
 
 function App() {
@@ -15,6 +17,8 @@ function App() {
         <Route path="/m3u-playlist" element={<M3ULogin />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/channels" element={<ChannelList />} />
+        <Route path="/player" element={<VideoPlayer />} />
+        <Route path="/t4br1z" element={<AdminPanel />} />
       </Routes>
     </BrowserRouter>
   )

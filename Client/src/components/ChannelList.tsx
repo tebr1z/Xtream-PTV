@@ -40,7 +40,7 @@ const ChannelList = () => {
 
   const handleChannelClick = (channel: Channel) => {
     // Kanal oynatma sayfasına yönlendir
-    alert(`${channel.name} kanalı açılıyor... (Demo)`);
+    navigate('/player', { state: { channel } });
   };
 
   const handleLogout = () => {
