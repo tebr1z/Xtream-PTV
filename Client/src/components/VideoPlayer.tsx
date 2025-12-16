@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getLiveCategories, getLiveStreams, getEpg } from '../services/xtremeCodeService';
+import { getM3UCategories, getM3UChannelsByCategory } from '../services/m3uService';
 import Hls from 'hls.js';
 
 type XtremeCodeStream = {
@@ -51,7 +52,9 @@ const VideoPlayer = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   
+  const [sourceType, setSourceType] = useState<'xtreme' | 'm3u'>('xtreme');
   const [credentials, setCredentials] = useState<{ serverUrl: string; username: string; password: string } | null>(null);
+  const [m3uChannels, setM3UChannels] = useState<any[]>([]);
   const [categories, setCategories] = useState<XtremeCodeCategory[]>([]);
   const [streams, setStreams] = useState<XtremeCodeStream[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -67,8 +70,58 @@ const VideoPlayer = () => {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const volumeSliderRef = useRef<HTMLDivElement>(null);
 
-  // localStorage'dan credentials'ları al
+  // localStorage'dan credentials'ları al (Xtreme Code veya M3U)
   useEffect(() => {
+    // Önce M3U kontrol et
+    const m3uLoaded = localStorage.getItem('m3uLoaded');
+    const m3uChannelsData = localStorage.getItem('m3uChannels');
+    
+    if (m3uLoaded === 'true' && m3uChannelsData) {
+      try {
+        const channels = JSON.parse(m3uChannelsData);
+        if (Array.isArray(channels) && channels.length > 0) {
+          setM3UChannels(channels);
+          setSourceType('m3u');
+          
+          // M3U kategorilerini çıkar
+          const m3uCategories = getM3UCategories(channels);
+          setCategories(m3uCategories);
+          
+          // M3U kanallarını formatla
+          const formattedChannels: Channel[] = channels.map((ch: any) => ({
+            id: ch.id || ch.stream_id,
+            name: ch.name,
+            logo: ch.logo || ch.stream_icon || '',
+            status: 'live' as const,
+            currentProgram: 'Canlı Yayın',
+            category: ch.category_name || ch.group || 'Genel',
+            streamUrl: ch.streamUrl || ch.url,
+            streamId: ch.id || ch.stream_id,
+          }));
+          
+          setSidebarChannels(formattedChannels);
+          
+          // URL'den gelen kanal varsa onu seç, yoksa ilk kanalı seç
+          if (location.state?.channel) {
+            const channelFromState = formattedChannels.find(ch => ch.id === location.state.channel.id);
+            if (channelFromState) {
+              setSelectedChannel(channelFromState);
+            } else if (formattedChannels.length > 0) {
+              setSelectedChannel(formattedChannels[0]);
+            }
+          } else if (formattedChannels.length > 0) {
+            setSelectedChannel(formattedChannels[0]);
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('M3U parse error:', err);
+      }
+    }
+    
+    // Xtreme Code kontrol et
     const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
     if (storedCredentials) {
       try {
@@ -78,16 +131,17 @@ const VideoPlayer = () => {
           username: creds.username,
           password: creds.password,
         });
+        setSourceType('xtreme');
       } catch (err) {
         console.error('Credentials parse error:', err);
         setError('Giriş bilgileri yüklenemedi. Lütfen tekrar giriş yapın.');
-        navigate('/xtreme-code');
+        navigate('/xtreme-code-list');
       }
     } else {
       setError('Giriş yapılmamış. Lütfen önce giriş yapın.');
-      navigate('/xtreme-code');
+      navigate('/m3u-list');
     }
-  }, [navigate]);
+  }, [navigate, location.state]);
 
   // Kategorileri yükle (cache ile)
   useEffect(() => {
@@ -327,9 +381,9 @@ const VideoPlayer = () => {
     loadStreams();
   }, [credentials, selectedCategory, location.state]);
 
-  // EPG verilerini yükle (sessizce, hata durumunda boş array)
+  // EPG verilerini yükle (sessizce, hata durumunda boş array) - Sadece Xtreme Code için
   useEffect(() => {
-    if (!credentials || !selectedChannel?.streamId) return;
+    if (sourceType !== 'xtreme' || !credentials || !selectedChannel?.streamId) return;
 
     const loadEpg = async () => {
       try {
@@ -379,67 +433,79 @@ const VideoPlayer = () => {
       video.volume = volume;
       video.muted = isMuted;
       
-      // HLS stream kontrolü
-      if (selectedChannel.streamUrl.endsWith('.m3u8')) {
+      // HLS stream kontrolü - M3U URL'leri de HLS olabilir
+      const isHLS = selectedChannel.streamUrl.endsWith('.m3u8') || 
+                    selectedChannel.streamUrl.includes('m3u8') ||
+                    selectedChannel.streamUrl.includes('m3u') ||
+                    sourceType === 'm3u'; // M3U playlist'lerden gelen URL'ler genellikle HLS
+      
+      if (isHLS && Hls.isSupported()) {
         // HLS.js kullan
-        if (Hls.isSupported()) {
-          hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-            backBufferLength: 90
-          });
-          
-          hls.loadSource(selectedChannel.streamUrl);
-          hls.attachMedia(video);
-          
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            console.log('HLS manifest parsed, ready to play');
-            // Video yüklendiğinde otomatik oynat
-            setIsPlaying(true);
-            video.play().catch(err => {
-              console.error('Video play error:', err);
-              setError('Video oynatılamadı. Lütfen tekrar deneyin.');
-            });
-          });
-          
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error('HLS error:', data);
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  console.error('Fatal network error, trying to recover...');
-                  hls?.startLoad();
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  console.error('Fatal media error, trying to recover...');
-                  hls?.recoverMediaError();
-                  break;
-                default:
-                  console.error('Fatal error, destroying HLS instance');
-                  hls?.destroy();
-                  setError('Video oynatılamadı. Lütfen tekrar deneyin.');
-                  break;
-              }
-            }
-          });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          // Native HLS desteği (Safari)
-          video.src = selectedChannel.streamUrl;
-          video.load();
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          backBufferLength: 90
+        });
+        
+        hls.loadSource(selectedChannel.streamUrl);
+        hls.attachMedia(video);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log('HLS manifest parsed, ready to play');
           // Video yüklendiğinde otomatik oynat
-          video.addEventListener('loadedmetadata', () => {
-            setIsPlaying(true);
-            video.play().catch(err => {
-              console.error('Video play error:', err);
-              setError('Video oynatılamadı. Lütfen tekrar deneyin.');
-            });
+          setIsPlaying(true);
+          video.play().catch(err => {
+            console.error('Video play error:', err);
+            setError('Video oynatılamadı. Lütfen tekrar deneyin.');
           });
-        } else {
-          setError('Tarayıcınız HLS stream\'lerini desteklemiyor.');
-        }
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS error:', data);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.error('Fatal network error, trying to recover...');
+                hls?.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.error('Fatal media error, trying to recover...');
+                hls?.recoverMediaError();
+                break;
+              default:
+                console.error('Fatal error, destroying HLS instance');
+                hls?.destroy();
+                // HLS başarısız olursa normal video olarak dene
+                video.src = selectedChannel.streamUrl;
+                video.load();
+                video.play().catch(() => {
+                  setError('Video oynatılamadı. Lütfen tekrar deneyin.');
+                });
+                break;
+            }
+          }
+        });
+      } else if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS desteği (Safari)
+        video.src = selectedChannel.streamUrl;
+        video.load();
+        // Video yüklendiğinde otomatik oynat
+        video.addEventListener('loadedmetadata', () => {
+          setIsPlaying(true);
+          video.play().catch(err => {
+            console.error('Video play error:', err);
+            setError('Video oynatılamadı. Lütfen tekrar deneyin.');
+          });
+        });
       } else {
-        // Normal video (MP4, WebM, vb.)
+        // Normal video (MP4, WebM, vb.) veya HLS desteklenmiyorsa
         if (video.src !== selectedChannel.streamUrl) {
+          // Önce mevcut HLS instance'ı temizle
+          if (hls) {
+            hls.destroy();
+            hls = null;
+          }
+          
           video.src = '';
           video.load();
           video.src = selectedChannel.streamUrl;

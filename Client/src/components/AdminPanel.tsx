@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getSavedAccounts } from '../services/xtremeCodeService';
+import { getSavedM3UAccounts } from '../services/m3uService';
 
 type Subscription = {
   id: string;
@@ -28,59 +30,151 @@ const AdminPanel = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('Tümü');
   const [currentPage, setCurrentPage] = useState(1);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const users: User[] = [
-    {
-      id: '1',
-      name: 'Ahmet Yılmaz',
-      email: 'ahmet@example.com',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCGNvZlE5-bO05H6Z6zobpvtAIg9IsnO8iRFUjHUdYz1omv0EfLlvD0zRPWeARWi5MjqlXZ1oMC-mEr2hW12Jej-Ex3MZKWRrj2whGZxMaBOHnrBfzOh0KrcjEPFv8QLVFRfM4d7q_Sgfxfc9HjWg-63wBWky8loJe542mSQUf2hgBaLJFVTwbqChNtI1jK0WVwjv8dIles_31hiUj3rmDJlJ6ZItW5rlIjLoevbNulFsUA7kUUoh-WxlM7Jvubi4Q5QiQvtWwPXJM',
-      userId: '#849302',
-      registerDate: '12.01.2023',
-      lastLogin: 'Bugün 10:30',
-      status: 'Aktif',
-    },
-    {
-      id: '2',
-      name: 'Ayşe Demir',
-      email: 'ayse@example.com',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeoG3ilKLx760qyy2mt7zi-vLYueVoocjRLw3vL5uaP4bzVDJDBtkjgjgzlrUNQW2NyIm6qfw--psjZZgIYnuy4Br8sLqc0P6U55EH_s_nON2Yg-etqDuR_0URiKLaJi4sn98wjg_L1xiQkCAXhqVBJ5UjMeN12R7yNrz51mFnMf1tJtdv4aLtcO--75aWtymwlR7oXHF1B-4k2agb2JR2H7Bl5yVFKdRv_4RYNpsqTgJcgpPZx0t0wVOzqe7_RVdH7LtYdTs0XFo',
-      userId: '#738291',
-      registerDate: '15.02.2023',
-      lastLogin: 'Dün 14:20',
-      status: 'Aktif',
-    },
-    {
-      id: '3',
-      name: 'Mehmet Kaya',
-      email: 'mehmet@example.com',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBOGl_bl644ifhtxJVTzJGLkGr4osGyCkw4kwBvhzNTWhxLacFt2-_7r4uY1F8X-DcJsdZspSwLosexhkg3habKcOReS1kCz7_Ezwe1_gqbIAU1KKQRSzU2URXyZIQYhrxE2q9Pkr3ger-RbMQT_gadYEF4D5hvZ_92cImoIDoS3QCwznVXSFOlqU_3ZAuafZ-Jl4_4unohuSzXKHMkRIAkpZbsrgRAj6FTxSBnHAhZ1XG5-8pagOaV_sdXkaXqhydmc8MCMhRrw8A',
-      userId: '#192837',
-      registerDate: '20.03.2023',
-      lastLogin: '2 gün önce',
-      status: 'Pasif',
-    },
-    {
-      id: '4',
-      name: 'Fatma Çelik',
-      email: 'fatma@example.com',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFqJr9-yeZ4__2KhC0MvbKtfCxUtnbXnN_b1xs3l8KbMWB0Q7TuM8Wh50LRKaIT5mES-dQBQ-aJwyuT_zKBYnwTZu9_ZhjIGRS4CvW1cmhX8kcgorlKCZ1YZkujN1ZRPFRIxtBhjGGWTuI7u1fvQArmusYOIH-UftJ_S1kqIhHiQdtbyX9fMKlaFwxDeZ0NQgZO4tZGrOx2_0MGGmCjAjoDfn-SfMnv3cgsO6hWKOlGI-902FLBj-vkxILdMVgRDEVQb1gQBEZwmk',
-      userId: '#473821',
-      registerDate: '05.04.2023',
-      lastLogin: '1 hafta önce',
-      status: 'Aktif',
-    },
-    {
-      id: '5',
-      name: 'Ali Vural',
-      email: 'ali@example.com',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAG3I-NjXesvxzCkXdXHKOMLEEHS7jky_Wyx0ly0WRmMgHqZUZnMGjkqZqDf9FLpUXoaue2bjMe_QeY0_JhGVewhmnptZI6u7J-pT8XDt_hPIE_ICy3RS414pN2auyeBzI76ADHiO9V_a-rATITY-cleD4GQT--MurPEzeFo4CkZ7IPYSftWvJ0CPe2TZJyToeIJxea6HXSHCyy-5Y5W28A3f2tsyixcuaKuTKFxvr-CUxQh0jO0qJoqBhyFekiSt034tTtthxbCu8',
-      userId: '#928374',
-      registerDate: '10.05.2023',
-      lastLogin: '1 ay önce',
-      status: 'Pasif',
-    },
-  ];
+  // Role kontrolü ve kullanıcı yükleme
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      const userStr = localStorage.getItem('user');
+      
+      if (!token || !userStr) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const user = JSON.parse(userStr);
+        
+        // Admin kontrolü
+        if (user.role !== 'admin') {
+          setError('Bu sayfaya erişmek için admin yetkisi gereklidir.');
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+
+        // Kullanıcıları yükle
+        await loadUsers();
+        
+        // Kayıtsız hesapları backend'e gönder
+        await syncAnonymousAccounts();
+      } catch (err) {
+        console.error('Auth check error:', err);
+        navigate('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  // Kayıtsız hesapları backend'e senkronize et
+  const syncAnonymousAccounts = async () => {
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      // Xtreme Code hesaplarını al
+      const xtremeAccounts = getSavedAccounts();
+      if (xtremeAccounts.length > 0) {
+        await fetch(`${backendUrl}/api/accounts/anonymous`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accounts: xtremeAccounts,
+            type: 'xtreme'
+          }),
+        });
+      }
+
+      // M3U hesaplarını al
+      const m3uAccounts = getSavedM3UAccounts();
+      if (m3uAccounts.length > 0) {
+        await fetch(`${backendUrl}/api/accounts/anonymous`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accounts: m3uAccounts,
+            type: 'm3u'
+          }),
+        });
+      }
+    } catch (err) {
+      console.error('Sync anonymous accounts error:', err);
+      // Hata olsa bile devam et
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/users?page=${currentPage}&limit=10&search=${searchQuery}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Backend'den gelen kullanıcıları formatla
+        const formattedUsers: User[] = data.users.map((u: any) => ({
+          id: u.id || u._id,
+          name: u.username,
+          email: u.email,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=19e6c4&color=000`,
+          userId: `#${u.id?.toString().slice(-6) || u._id?.toString().slice(-6)}`,
+          registerDate: new Date(u.createdAt).toLocaleDateString('tr-TR'),
+          lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('tr-TR') : 'Hiç',
+          status: u.isActive ? 'Aktif' : 'Pasif',
+          role: u.role || 'user',
+        }));
+        setUsers(formattedUsers);
+      } else {
+        setError(data.message || 'Kullanıcılar yüklenemedi.');
+      }
+    } catch (err) {
+      console.error('Load users error:', err);
+      setError('Kullanıcılar yüklenirken hata oluştu.');
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: 'admin' | 'user') => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await loadUsers(); // Kullanıcı listesini yenile
+      } else {
+        alert(data.message || 'Role güncellenemedi.');
+      }
+    } catch (err) {
+      console.error('Role change error:', err);
+      alert('Role güncellenirken hata oluştu.');
+    }
+  };
+
+  // Kullanıcılar artık backend'den yükleniyor (useEffect'te)
 
   const subscriptions: Subscription[] = [
     {
@@ -171,6 +265,17 @@ const AdminPanel = () => {
           >
             <span className={`material-symbols-outlined text-xl ${activeTab === 'users' ? 'fill' : ''}`}>group</span>
             <span className="text-sm font-medium">Kullanıcılar</span>
+          </a>
+          <a
+            onClick={() => setActiveTab('anonymous')}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors cursor-pointer ${
+              activeTab === 'anonymous'
+                ? 'bg-[#19e6c4]/10 text-[#19e6c4]'
+                : 'text-[#9db8b4] hover:bg-[#293836] hover:text-white'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-xl ${activeTab === 'anonymous' ? 'fill' : ''}`}>person_off</span>
+            <span className="text-sm font-medium">Kayıtsız Hesaplar</span>
           </a>
           <a
             onClick={() => setActiveTab('iptv')}
@@ -295,7 +400,9 @@ const AdminPanel = () => {
 
         {/* SCROLLABLE CONTENT */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {activeTab === 'users' ? (
+          {activeTab === 'anonymous' ? (
+            <AnonymousAccountsView />
+          ) : activeTab === 'users' ? (
             <UserListView
               users={users}
               searchQuery={searchQuery}
@@ -587,6 +694,7 @@ const UserListView = ({
   setFilterStatus,
   currentPage,
   setCurrentPage,
+  onRoleChange,
 }: {
   users: User[];
   searchQuery: string;
@@ -595,6 +703,7 @@ const UserListView = ({
   setFilterStatus: (status: string) => void;
   currentPage: number;
   setCurrentPage: (page: number) => void;
+  onRoleChange?: (userId: string, newRole: 'admin' | 'user') => void;
 }) => {
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -741,6 +850,9 @@ const UserListView = ({
                   <th className="px-6 py-4 font-semibold tracking-wider text-center" scope="col">
                     Durum
                   </th>
+                  <th className="px-6 py-4 font-semibold tracking-wider text-center" scope="col">
+                    Role
+                  </th>
                   <th className="px-6 py-4 text-right font-semibold tracking-wider" scope="col">
                     İşlemler
                   </th>
@@ -783,6 +895,20 @@ const UserListView = ({
                         ></span>
                         {user.status}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-center">
+                      <select
+                        value={user.role || 'user'}
+                        onChange={(e) => {
+                          if (onRoleChange) {
+                            onRoleChange(user.id, e.target.value as 'admin' | 'user');
+                          }
+                        }}
+                        className="bg-[#11211e] border border-[#293836] text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-[#19e6c4]"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -893,6 +1019,269 @@ const UserListView = ({
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Anonymous Accounts View Component
+const AnonymousAccountsView = () => {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterType, setFilterType] = useState<'all' | 'xtreme' | 'm3u'>('all');
+  const [ipFilter, setIpFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadAccounts();
+  }, [filterType, ipFilter]);
+
+  const loadAccounts = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const params = new URLSearchParams();
+      if (filterType !== 'all') {
+        params.append('type', filterType);
+      }
+      if (ipFilter) {
+        params.append('ip', ipFilter);
+      }
+
+      const response = await fetch(`${backendUrl}/api/accounts/anonymous?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAccounts(data.accounts || []);
+      }
+    } catch (err) {
+      console.error('Load anonymous accounts error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (accountId: string) => {
+    if (!confirm('Bu hesabı silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/accounts/anonymous/${accountId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        loadAccounts();
+      } else {
+        alert(data.message || 'Hesap silinemedi.');
+      }
+    } catch (err) {
+      console.error('Delete account error:', err);
+      alert('Hesap silinirken hata oluştu.');
+    }
+  };
+
+  const filteredAccounts = accounts.filter(account => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        (account.tvName || account.name || '').toLowerCase().includes(query) ||
+        (account.serverUrl || account.url || '').toLowerCase().includes(query) ||
+        (account.username || '').toLowerCase().includes(query) ||
+        (account.password || '').toLowerCase().includes(query) ||
+        (account.ip || '').toLowerCase().includes(query)
+      );
+    }
+    return true;
+  });
+
+  return (
+    <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-1">Kayıtsız Hesaplar</h2>
+          <p className="text-sm text-[#9db8b4]">Kayıt olmadan kullanılan M3U ve Xtreme Code hesapları</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Ara (TV adı, URL, kullanıcı adı, IP...)"
+            className="w-full bg-[#1a2c29] border border-[#293836] text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] placeholder-gray-600"
+          />
+        </div>
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value as 'all' | 'xtreme' | 'm3u')}
+          className="bg-[#1a2c29] border border-[#293836] text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4]"
+        >
+          <option value="all">Tümü</option>
+          <option value="xtreme">Xtreme Code</option>
+          <option value="m3u">M3U</option>
+        </select>
+        <input
+          type="text"
+          value={ipFilter}
+          onChange={(e) => setIpFilter(e.target.value)}
+          placeholder="IP adresi filtrele"
+          className="bg-[#1a2c29] border border-[#293836] text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] placeholder-gray-600 w-full sm:w-48"
+        />
+      </div>
+
+      {/* Accounts Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#19e6c4]"></div>
+        </div>
+      ) : filteredAccounts.length === 0 ? (
+        <div className="text-center py-20">
+          <p className="text-[#9db8b4]">Kayıtsız hesap bulunamadı</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-[#293836] bg-[#1b2725] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#11211e] text-xs uppercase font-semibold text-[#9db8b4]">
+                <tr>
+                  <th className="px-6 py-4">Tip</th>
+                  <th className="px-6 py-4">TV Adı / Playlist</th>
+                  <th className="px-6 py-4">URL / Link</th>
+                  <th className="px-6 py-4">Kullanıcı Adı</th>
+                  <th className="px-6 py-4">Şifre</th>
+                  <th className="px-6 py-4">IP Adresi</th>
+                  <th className="px-6 py-4">Oluşturulma</th>
+                  <th className="px-6 py-4">Son Güncelleme</th>
+                  <th className="px-6 py-4 text-right">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#293836]">
+                {filteredAccounts.map((account) => (
+                  <tr key={account.id} className="hover:bg-[#233935] transition-colors">
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium border ${
+                        account.type === 'xtreme'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                      }`}>
+                        {account.type === 'xtreme' ? 'Xtreme Code' : 'M3U'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-white font-medium">
+                      {account.tvName || account.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-[#9db8b4] text-xs font-mono max-w-xs truncate" title={account.serverUrl || account.url || ''}>
+                      {account.serverUrl || account.url || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-[#9db8b4]">
+                      {account.username || '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {account.password ? (
+                          <>
+                            <span className={`font-mono text-xs ${visiblePasswords.has(account.id || '') ? 'text-red-400' : 'text-yellow-400'}`}>
+                              {visiblePasswords.has(account.id || '') ? account.password : '••••••••'}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const newVisible = new Set(visiblePasswords);
+                                if (newVisible.has(account.id || '')) {
+                                  newVisible.delete(account.id || '');
+                                } else {
+                                  newVisible.add(account.id || '');
+                                }
+                                setVisiblePasswords(newVisible);
+                              }}
+                              className="text-[#9db8b4] hover:text-[#19e6c4] transition-colors"
+                              title={visiblePasswords.has(account.id || '') ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                            >
+                              <span className="material-symbols-outlined text-sm">
+                                {visiblePasswords.has(account.id || '') ? 'visibility_off' : 'visibility'}
+                              </span>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[#9db8b4]">-</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-[#19e6c4] font-mono text-xs" title={account.ip || 'Bilinmiyor'}>
+                        {account.ip && account.ip !== 'unknown' 
+                          ? account.ip.replace('::1', '127.0.0.1 (Localhost)').replace('::ffff:', '')
+                          : 'Bilinmiyor'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-[#9db8b4] text-xs">
+                      {account.createdAt
+                        ? new Date(account.createdAt).toLocaleString('tr-TR')
+                        : account.submittedAt
+                        ? new Date(account.submittedAt).toLocaleString('tr-TR')
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-[#9db8b4] text-xs">
+                      {account.updatedAt || account.lastUsed
+                        ? new Date(account.updatedAt || account.lastUsed).toLocaleString('tr-TR')
+                        : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDelete(account.id)}
+                        className="rounded p-1.5 text-[#9db8b4] hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                        title="Sil"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-4">
+          <p className="text-[#9db8b4] text-sm mb-1">Toplam Hesap</p>
+          <p className="text-2xl font-bold text-white">{accounts.length}</p>
+        </div>
+        <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-4">
+          <p className="text-[#9db8b4] text-sm mb-1">Xtreme Code</p>
+          <p className="text-2xl font-bold text-blue-400">
+            {accounts.filter(a => a.type === 'xtreme').length}
+          </p>
+        </div>
+        <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-4">
+          <p className="text-[#9db8b4] text-sm mb-1">M3U Playlist</p>
+          <p className="text-2xl font-bold text-purple-400">
+            {accounts.filter(a => a.type === 'm3u').length}
+          </p>
         </div>
       </div>
     </div>

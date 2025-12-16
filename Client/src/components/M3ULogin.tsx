@@ -39,13 +39,22 @@ const M3ULogin = () => {
 
       if (response.success && response.channels) {
         // Başarılı yükleme - bilgileri localStorage'a kaydet
-        localStorage.setItem('m3uCredentials', JSON.stringify(formData));
-        localStorage.setItem('m3uChannels', JSON.stringify(response.channels));
-        localStorage.setItem('m3uLoaded', 'true');
+        const { saveM3UAccount, setActiveM3UAccount } = await import('../services/m3uService');
+        const accountWithName = {
+          ...formData,
+          name: formData.url.split('/').pop() || 'M3U Playlist',
+          channelCount: response.channels.length
+        };
+        saveM3UAccount(accountWithName);
+        setActiveM3UAccount(accountWithName, response.channels);
+        
+        // Backend'e gönder (kayıtsız kullanıcı için)
+        const { sendM3UAccount } = await import('../services/anonymousAccountService');
+        await sendM3UAccount(accountWithName);
         
         // Dashboard'a yönlendir (şimdilik ana sayfaya)
         alert(`M3U playlist başarıyla yüklendi! ${response.channels.length} kanal bulundu.`);
-        // navigate('/dashboard');
+        navigate('/');
       } else {
         setError(response.message || 'Playlist yüklenirken hata oluştu.');
       }

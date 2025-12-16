@@ -68,17 +68,38 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      // Login API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simüle edilmiş başarılı giriş
-      localStorage.setItem('user', JSON.stringify({ username: loginData.usernameOrEmail }));
-      localStorage.setItem('isAuthenticated', 'true');
-      
-      alert('Giriş başarılı!');
-      navigate('/');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usernameOrEmail: loginData.usernameOrEmail,
+          password: loginData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Token ve kullanıcı bilgilerini kaydet
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('isAuthenticated', 'true');
+        
+        // Remember me
+        if (loginData.rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        }
+        
+        navigate('/');
+      } else {
+        setError(data.message || 'Giriş bilgileri hatalı');
+      }
     } catch (err) {
-      setError('Giriş bilgileri hatalı');
+      console.error('Login error:', err);
+      setError('Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setIsLoading(false);
     }
@@ -107,13 +128,35 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      // Register API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('Kayıt başarılı! Giriş yapabilirsiniz.');
-      setActiveTab('login');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: registerData.username,
+          email: registerData.email,
+          password: registerData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Token ve kullanıcı bilgilerini kaydet
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('isAuthenticated', 'true');
+        
+        alert('Kayıt başarılı! Otomatik olarak giriş yapıldı.');
+        navigate('/');
+      } else {
+        setError(data.message || 'Kayıt sırasında bir hata oluştu');
+      }
     } catch (err) {
-      setError('Kayıt sırasında bir hata oluştu');
+      console.error('Register error:', err);
+      setError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setIsLoading(false);
     }

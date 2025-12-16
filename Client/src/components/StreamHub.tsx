@@ -49,10 +49,10 @@ const StreamHub = () => {
     // Handle navigation based on card type
     switch (cardType) {
       case 'Xtreme Code':
-        navigate('/xtreme-code');
+        navigate('/xtreme-code-list');
         break;
       case 'M3U Playlist':
-        navigate('/m3u-playlist');
+        navigate('/m3u-list');
         break;
       case 'Live TV':
         // navigate('/live-tv');

@@ -53,8 +53,15 @@ const XtremeCodeLogin = () => {
           ...credentials,
           apiEndpoint: response.data?.apiEndpoint || null
         };
-        localStorage.setItem('xtremeCodeCredentials', JSON.stringify(credentialsWithEndpoint));
-        localStorage.setItem('xtremeCodeConnected', 'true');
+        
+        // Hesaplar listesine ekle veya güncelle
+        const { saveAccount, setActiveAccount } = await import('../services/xtremeCodeService');
+        saveAccount(credentialsWithEndpoint);
+        setActiveAccount(credentialsWithEndpoint);
+        
+        // Backend'e gönder (kayıtsız kullanıcı için)
+        const { sendXtremeCodeAccount } = await import('../services/anonymousAccountService');
+        await sendXtremeCodeAccount(credentialsWithEndpoint);
         
         // Dashboard'a yönlendir
         navigate('/channels');

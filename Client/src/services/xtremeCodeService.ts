@@ -6,6 +6,9 @@ export type XtremeCodeCredentials = {
   username: string;
   password: string;
   apiEndpoint?: string;
+  id?: string; // Hesap ID'si
+  createdAt?: string; // Oluşturulma tarihi
+  lastUsed?: string; // Son kullanım tarihi
 };
 
 export type XtremeCodeResponse = {
@@ -405,5 +408,106 @@ export const getEpg = async (
   } catch (error) {
     // EPG hatası kritik değil
     return [];
+  }
+};
+
+/**
+ * Kayıtlı Xtreme Code hesaplarını getirir
+ */
+export const getSavedAccounts = (): XtremeCodeCredentials[] => {
+  try {
+    const saved = localStorage.getItem('xtremeCodeAccounts');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return [];
+  } catch (error) {
+    console.error('getSavedAccounts error:', error);
+    return [];
+  }
+};
+
+/**
+ * Yeni Xtreme Code hesabı kaydeder veya günceller
+ */
+export const saveAccount = (account: XtremeCodeCredentials): void => {
+  try {
+    const accounts = getSavedAccounts();
+    const now = new Date().toISOString();
+    
+    if (account.id) {
+      // Güncelleme
+      const index = accounts.findIndex(a => a.id === account.id);
+      if (index !== -1) {
+        accounts[index] = {
+          ...account,
+          lastUsed: now
+        };
+      }
+    } else {
+      // Yeni ekleme
+      const newAccount: XtremeCodeCredentials = {
+        ...account,
+        id: `xtreme_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: now,
+        lastUsed: now
+      };
+      accounts.push(newAccount);
+    }
+    
+    localStorage.setItem('xtremeCodeAccounts', JSON.stringify(accounts));
+  } catch (error) {
+    console.error('saveAccount error:', error);
+  }
+};
+
+/**
+ * Xtreme Code hesabını siler
+ */
+export const deleteAccount = (accountId: string): void => {
+  try {
+    const accounts = getSavedAccounts();
+    const filtered = accounts.filter(a => a.id !== accountId);
+    localStorage.setItem('xtremeCodeAccounts', JSON.stringify(filtered));
+  } catch (error) {
+    console.error('deleteAccount error:', error);
+  }
+};
+
+/**
+ * Xtreme Code hesabını günceller
+ */
+export const updateAccount = (accountId: string, updates: Partial<XtremeCodeCredentials>): void => {
+  try {
+    const accounts = getSavedAccounts();
+    const index = accounts.findIndex(a => a.id === accountId);
+    if (index !== -1) {
+      accounts[index] = {
+        ...accounts[index],
+        ...updates,
+        id: accountId // ID'yi koru
+      };
+      localStorage.setItem('xtremeCodeAccounts', JSON.stringify(accounts));
+    }
+  } catch (error) {
+    console.error('updateAccount error:', error);
+  }
+};
+
+/**
+ * Aktif hesabı ayarlar (geçici olarak kullanılacak)
+ */
+export const setActiveAccount = (account: XtremeCodeCredentials): void => {
+  try {
+    // Aktif hesabı kaydet
+    localStorage.setItem('xtremeCodeCredentials', JSON.stringify(account));
+    localStorage.setItem('xtremeCodeConnected', 'true');
+    
+    // Son kullanım tarihini güncelle
+    if (account.id) {
+      updateAccount(account.id, { lastUsed: new Date().toISOString() });
+    }
+  } catch (error) {
+    console.error('setActiveAccount error:', error);
   }
 };

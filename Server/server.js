@@ -1,9 +1,30 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import mongoose from 'mongoose';
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import accountRoutes from './routes/accounts.js';
+import dotenv from 'dotenv';
+
+// .env dosyasını yükle
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// MongoDB bağlantısı
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/iptv-manager';
+
+// MongoDB bağlantısı (opsiyonel - bağlantı hatası server'ı durdurmaz)
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB bağlantısı başarılı');
+  })
+  .catch((error) => {
+    console.error('❌ MongoDB bağlantı hatası:', error.message);
+    console.log('⚠️  MongoDB bağlantısı olmadan devam ediliyor...');
+  });
 
 // CORS middleware
 app.use(cors({
@@ -13,6 +34,18 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Trust proxy for IP address
+app.set('trust proxy', true);
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// User routes
+app.use('/api/users', userRoutes);
+
+// Account routes (anonymous accounts)
+app.use('/api/accounts', accountRoutes);
 
 // Xtreme Code API Proxy endpoint
 app.get('/api/xtreme', async (req, res) => {
@@ -120,5 +153,8 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`IPTV Proxy Server running on http://localhost:${PORT}`);
+  console.log(`🚀 IPTV Proxy Server running on http://localhost:${PORT}`);
+  console.log(`📡 Auth routes: http://localhost:${PORT}/api/auth`);
+  console.log(`👥 User routes: http://localhost:${PORT}/api/users`);
+  console.log(`🔍 Health check: http://localhost:${PORT}/health`);
 });
