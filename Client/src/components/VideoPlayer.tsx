@@ -822,89 +822,14 @@ const VideoPlayer = () => {
             </div>
           </div>
 
-          {/* Meta Information Area - Scroll edilebilir */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 lg:px-0 min-h-0">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">{currentChannel.name}</h2>
-                  <span className="bg-[#19e6c4]/20 text-[#19e6c4] px-2 py-0.5 rounded text-xs font-bold border border-[#19e6c4]/20">
-                    1080p
-                  </span>
-                </div>
-                <h3 className="text-lg text-gray-300 font-medium mb-3">Canlı Yayın: {currentChannel.currentProgram || 'Canlı Yayın'}</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <div className="bg-[#1a2c29] border border-[#293836] rounded px-3 py-1 text-xs text-gray-400 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">category</span>
-                    {currentChannel.category || 'Genel'}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button className="flex items-center justify-center gap-2 bg-[#1a2c29] hover:bg-[#243834] border border-[#293836] text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium">
-                  <span className="material-symbols-outlined text-[20px]">favorite_border</span>
-                  Favori Ekle
-                </button>
-                <button className="flex items-center justify-center gap-2 bg-[#1a2c29] hover:bg-[#243834] border border-[#293836] text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium">
-                  <span className="material-symbols-outlined text-[20px]">share</span>
-                  Paylaş
-                </button>
-              </div>
+          {/* Meta Information Area - Sadece kanal adı ve çözünürlük */}
+          <div className="shrink-0 p-5 lg:px-0">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">{currentChannel.name}</h2>
+              <span className="bg-[#19e6c4]/20 text-[#19e6c4] px-2 py-0.5 rounded text-xs font-bold border border-[#19e6c4]/20">
+                1080p
+              </span>
             </div>
-
-            {/* Next Program (EPG) */}
-            {programs.length > 0 && (
-              <div className="mt-8">
-                <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#19e6c4]">upcoming</span>
-                  Yayın Akışı
-                </h4>
-                <div className="space-y-2">
-                  {programs.map((program, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-center gap-4 p-3 rounded-lg relative overflow-hidden transition-colors ${
-                        program.isCurrent
-                          ? 'bg-[#1a2c29]/50 border border-[#19e6c4]/30'
-                          : 'hover:bg-[#1a2c29] border border-transparent hover:border-[#293836] cursor-pointer group'
-                      }`}
-                    >
-                      {program.isCurrent && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#19e6c4]"></div>
-                      )}
-                      <span
-                        className={`font-medium text-sm w-12 shrink-0 ${
-                          program.isCurrent ? 'text-[#19e6c4] font-bold' : 'text-gray-400 group-hover:text-white'
-                        }`}
-                      >
-                        {program.time}
-                      </span>
-                      <div className="flex-1">
-                        <p
-                          className={`text-sm font-medium ${
-                            program.isCurrent
-                              ? 'text-white'
-                              : 'text-gray-300 group-hover:text-white'
-                          }`}
-                        >
-                          {program.title}
-                        </p>
-                        <p className="text-gray-500 text-xs">{program.description}</p>
-                      </div>
-                      {program.isCurrent ? (
-                        <div className="bg-[#19e6c4]/10 p-1.5 rounded text-[#19e6c4]">
-                          <span className="material-symbols-outlined text-[18px] block">play_circle</span>
-                        </div>
-                      ) : (
-                        <button className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition-opacity">
-                          <span className="material-symbols-outlined text-[20px]">notifications_none</span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
