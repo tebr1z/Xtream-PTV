@@ -49,6 +49,7 @@ const VideoPlayer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   
   const [credentials, setCredentials] = useState<{ serverUrl: string; username: string; password: string } | null>(null);
   const [categories, setCategories] = useState<XtremeCodeCategory[]>([]);
@@ -61,6 +62,10 @@ const VideoPlayer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [volume, setVolume] = useState(1); // 0-1 arası
+  const [isMuted, setIsMuted] = useState(false);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const volumeSliderRef = useRef<HTMLDivElement>(null);
 
   // localStorage'dan credentials'ları al
   useEffect(() => {
@@ -356,11 +361,23 @@ const VideoPlayer = () => {
     loadEpg();
   }, [credentials, selectedChannel]);
 
+  // Video volume'u ayarla
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+      videoRef.current.muted = isMuted;
+    }
+  }, [volume, isMuted]);
+
   // Video oynatma
   useEffect(() => {
     if (videoRef.current && selectedChannel?.streamUrl) {
       const video = videoRef.current;
       let hls: Hls | null = null;
+      
+      // Video volume'u ayarla
+      video.volume = volume;
+      video.muted = isMuted;
       
       // HLS stream kontrolü
       if (selectedChannel.streamUrl.endsWith('.m3u8')) {
@@ -377,12 +394,12 @@ const VideoPlayer = () => {
           
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             console.log('HLS manifest parsed, ready to play');
-            if (isPlaying) {
-              video.play().catch(err => {
-                console.error('Video play error:', err);
-                setError('Video oynatılamadı. Lütfen tekrar deneyin.');
-              });
-            }
+            // Video yüklendiğinde otomatik oynat
+            setIsPlaying(true);
+            video.play().catch(err => {
+              console.error('Video play error:', err);
+              setError('Video oynatılamadı. Lütfen tekrar deneyin.');
+            });
           });
           
           hls.on(Hls.Events.ERROR, (event, data) => {
@@ -409,12 +426,14 @@ const VideoPlayer = () => {
           // Native HLS desteği (Safari)
           video.src = selectedChannel.streamUrl;
           video.load();
-          if (isPlaying) {
+          // Video yüklendiğinde otomatik oynat
+          video.addEventListener('loadedmetadata', () => {
+            setIsPlaying(true);
             video.play().catch(err => {
               console.error('Video play error:', err);
               setError('Video oynatılamadı. Lütfen tekrar deneyin.');
             });
-          }
+          });
         } else {
           setError('Tarayıcınız HLS stream\'lerini desteklemiyor.');
         }
@@ -427,14 +446,14 @@ const VideoPlayer = () => {
           video.load();
         }
         
-        if (isPlaying) {
+        // Video yüklendiğinde otomatik oynat
+        video.addEventListener('loadedmetadata', () => {
+          setIsPlaying(true);
           video.play().catch(err => {
             console.error('Video play error:', err);
             setError('Video oynatılamadı. Lütfen tekrar deneyin.');
           });
-        } else {
-          video.pause();
-        }
+        }, { once: true });
       }
       
       // Cleanup
@@ -458,6 +477,56 @@ const VideoPlayer = () => {
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
+
+  const handleVolumeChange = (newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    setVolume(clampedVolume);
+    setIsMuted(clampedVolume === 0);
+    if (videoRef.current) {
+      videoRef.current.volume = clampedVolume;
+      videoRef.current.muted = clampedVolume === 0;
+    }
+  };
+
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      if (isMuted || volume === 0) {
+        // Unmute - önceki ses seviyesine geri dön veya %50
+        const newVolume = volume > 0 ? volume : 0.5;
+        setVolume(newVolume);
+        setIsMuted(false);
+        videoRef.current.volume = newVolume;
+        videoRef.current.muted = false;
+      } else {
+        // Mute
+        setIsMuted(true);
+        videoRef.current.muted = true;
+      }
+    }
+  };
+
+  const handleVolumeButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowVolumeSlider(!showVolumeSlider);
+  };
+
+  // Dışarı tıklanınca slider'ı kapat
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (volumeSliderRef.current && !volumeSliderRef.current.contains(event.target as Node)) {
+        setShowVolumeSlider(false);
+      }
+    };
+
+    if (showVolumeSlider) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showVolumeSlider]);
 
   const handleFullscreen = () => {
     if (videoRef.current) {
@@ -522,7 +591,7 @@ const VideoPlayer = () => {
   };
 
   return (
-    <div className="bg-[#f6f8f8] dark:bg-[#11211e] font-display text-slate-900 dark:text-white min-h-screen flex flex-col overflow-hidden w-full">
+    <div className="bg-[#f6f8f8] dark:bg-[#11211e] font-display text-slate-900 dark:text-white h-screen flex flex-col overflow-hidden w-full">
       {/* Header Section */}
       <header className="shrink-0 border-b border-[#293836] bg-[#11211e] z-20">
         <div className="px-6 py-4 flex items-center justify-between">
@@ -606,18 +675,19 @@ const VideoPlayer = () => {
       </header>
 
       {/* Main Content Grid */}
-      <main className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 p-0 lg:p-6 lg:pt-2">
+      <main className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 p-0 lg:p-6 lg:pt-2 min-h-0">
         {/* Video Player Section (Left) */}
-        <div className="lg:col-span-9 flex flex-col h-full overflow-y-auto custom-scrollbar">
-          {/* Player Container */}
-          <div className="bg-black relative aspect-video w-full rounded-none lg:rounded-2xl overflow-hidden group shadow-2xl">
+        <div className="lg:col-span-9 flex flex-col h-full min-h-0">
+          {/* Player Container - Sabit boyut, scroll'dan etkilenmez */}
+          <div ref={playerContainerRef} className="bg-black relative w-full h-[600px] lg:h-[700px] shrink-0 rounded-none lg:rounded-2xl overflow-hidden group shadow-2xl">
             {selectedChannel?.streamUrl ? (
               <video
                 ref={videoRef}
-                className="w-full h-full object-contain"
+                className="absolute inset-0 w-full h-full object-contain"
                 controls={false}
                 playsInline
                 preload="auto"
+                autoPlay
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onError={(e) => {
@@ -685,10 +755,56 @@ const VideoPlayer = () => {
                   <button className="text-white hover:text-[#19e6c4] transition-colors">
                     <span className="material-symbols-outlined text-[28px]">replay_10</span>
                   </button>
-                  <div className="flex items-center gap-2 group/volume ml-2">
-                    <button className="text-white hover:text-[#19e6c4] transition-colors">
-                      <span className="material-symbols-outlined">volume_up</span>
+                  <div 
+                    ref={volumeSliderRef}
+                    className="flex items-center gap-2 group/volume ml-2 relative"
+                  >
+                    <button 
+                      onClick={handleMuteToggle}
+                      className="text-white hover:text-[#19e6c4] transition-colors"
+                      title={isMuted ? 'Sesi Aç' : 'Sesi Kapat'}
+                    >
+                      <span className="material-symbols-outlined">
+                        {isMuted || volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+                      </span>
                     </button>
+                    <button
+                      onClick={handleVolumeButtonClick}
+                      className="text-white hover:text-[#19e6c4] transition-colors flex items-center gap-1 text-sm"
+                      title="Ses Seviyesi"
+                    >
+                      <span className="text-xs font-medium">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+                      <span className="material-symbols-outlined text-[16px]">
+                        {showVolumeSlider ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+                    {showVolumeSlider && (
+                      <div 
+                        className="absolute bottom-full left-0 mb-2 bg-black/95 backdrop-blur-md rounded-lg p-4 border border-white/20 z-50 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={isMuted ? 0 : volume}
+                            onChange={(e) => {
+                              const newVolume = parseFloat(e.target.value);
+                              handleVolumeChange(newVolume);
+                            }}
+                            className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            style={{
+                              background: `linear-gradient(to right, #19e6c4 0%, #19e6c4 ${(isMuted ? 0 : volume) * 100}%, #4b5563 ${(isMuted ? 0 : volume) * 100}%, #4b5563 100%)`
+                            }}
+                          />
+                          <div className="text-white text-sm font-medium min-w-[3rem] text-center">
+                            {Math.round((isMuted ? 0 : volume) * 100)}%
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -706,8 +822,8 @@ const VideoPlayer = () => {
             </div>
           </div>
 
-          {/* Meta Information Area */}
-          <div className="p-5 lg:px-0">
+          {/* Meta Information Area - Scroll edilebilir */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 lg:px-0 min-h-0">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
@@ -793,9 +909,9 @@ const VideoPlayer = () => {
         </div>
 
         {/* Sidebar Channel List (Right) */}
-        <div className="lg:col-span-3 flex flex-col h-[500px] lg:h-full bg-[#1a2c29] lg:rounded-2xl border-t lg:border border-[#293836] overflow-hidden">
+        <div className="lg:col-span-3 flex flex-col h-[500px] lg:h-full bg-[#1a2c29] lg:rounded-2xl border-t lg:border border-[#293836] overflow-hidden min-h-0">
           {/* Sidebar Header / Search */}
-          <div className="p-4 border-b border-[#293836] bg-[#1a2c29]/95 backdrop-blur z-10">
+          <div className="shrink-0 p-4 border-b border-[#293836] bg-[#1a2c29]/95 backdrop-blur z-10">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 material-symbols-outlined text-[20px]">
                 search
@@ -810,8 +926,8 @@ const VideoPlayer = () => {
             </div>
           </div>
 
-          {/* List Container */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+          {/* List Container - Sadece bu kısım scroll edilebilir */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 min-h-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -882,7 +998,7 @@ const VideoPlayer = () => {
           </div>
 
           {/* Sidebar Footer Status */}
-          <div className="p-3 bg-[#243834] border-t border-[#293836] flex justify-between items-center text-xs text-gray-400">
+          <div className="shrink-0 p-3 bg-[#243834] border-t border-[#293836] flex justify-between items-center text-xs text-gray-400">
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-emerald-500"></div>
               <span>Online: {sidebarChannels.length} Kanal</span>

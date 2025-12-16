@@ -1,4 +1,4 @@
-gir// Xtreme Code API Service
+// Xtreme Code API Service
 
 export type XtremeCodeCredentials = {
   serverUrl: string;
