@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import Footer from './Footer';
+import SEO from './SEO';
+import LanguageSwitcher from './LanguageSwitcher';
+import StructuredData from './StructuredData';
 
 interface CardProps {
   icon: string;
@@ -43,7 +48,17 @@ const Card = ({ icon, title, description, onClick }: CardProps) => {
 
 const StreamHub = () => {
   const navigate = useNavigate();
+  const { t, ready } = useTranslation();
   const [isDarkMode] = useState(true); // You can add toggle functionality later
+
+  // i18n hazır olana kadar yükleniyor göster
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background-dark">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   const handleCardClick = (cardType: string) => {
     // Handle navigation based on card type
@@ -56,28 +71,48 @@ const StreamHub = () => {
         break;
       case 'Live TV':
         // navigate('/live-tv');
-        alert('Live TV özelliği yakında eklenecek!');
+        alert(t('common.loading')); // TODO: Add proper translation
         break;
       case 'Login':
-        navigate('/login');
+        // Eğer login olmuşsa user sayfasına yönlendir
+        const token = localStorage.getItem('authToken');
+        const user = localStorage.getItem('user');
+        if (token && user) {
+          navigate('/user');
+        } else {
+          navigate('/login');
+        }
         break;
       default:
-        alert(`${cardType} özelliği yakında eklenecek!`);
+        alert(t('common.loading')); // TODO: Add proper translation
     }
   };
 
   const handleSettingsClick = () => {
     // Handle settings click
-    alert('Ayarlar sayfası yakında eklenecek!');
+    alert(t('common.loading')); // TODO: Add proper translation
   };
 
   const handleProfileClick = () => {
-    // Handle profile click
-    alert('Profil sayfası yakında eklenecek!');
+    // Kullanıcı login olmuş mu kontrol et
+    const token = localStorage.getItem('authToken');
+    const user = localStorage.getItem('user');
+    
+    if (token && user) {
+      navigate('/user');
+    } else {
+      navigate('/login');
+    }
   };
 
   return (
     <div className={`flex flex-col min-h-screen w-full bg-background-dark font-display text-white antialiased overflow-x-hidden selection:bg-primary selection:text-background-dark ${isDarkMode ? 'dark' : ''}`}>
+      <SEO
+        title={t('seo.homeTitle')}
+        description={t('seo.homeDescription')}
+        keywords={t('seo.keywords')}
+      />
+      <StructuredData />
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/10 px-6 py-4 lg:px-12 w-full">
         <div className="flex items-center gap-3">
@@ -86,25 +121,40 @@ const StreamHub = () => {
               <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
             </svg>
           </div>
-          <h2 className="text-xl font-bold tracking-tight">StreamHub</h2>
+          <h2 className="text-xl font-bold tracking-tight">{t('common.appName')}</h2>
         </div>
         <div className="flex items-center gap-4">
+          <LanguageSwitcher />
           <button
             onClick={handleSettingsClick}
             className="flex items-center justify-center size-10 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark"
-            aria-label="Settings"
+            aria-label={t('common.settings')}
           >
             <span className="material-symbols-outlined">settings</span>
           </button>
-          <button
-            onClick={handleProfileClick}
-            className="flex items-center justify-center size-10 rounded-full bg-surface-dark border border-white/10 hover:border-primary/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark"
-            aria-label="Profile"
-          >
-            <span className="material-symbols-outlined text-primary" style={{ fontSize: '20px' }}>
-              person
-            </span>
-          </button>
+          {(() => {
+            const token = localStorage.getItem('authToken');
+            const user = localStorage.getItem('user');
+            const isLoggedIn = !!(token && user);
+            
+            return (
+              <button
+                onClick={handleProfileClick}
+                className={`flex items-center justify-center size-10 rounded-full hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark relative ${
+                  isLoggedIn ? 'text-primary border-2 border-primary' : 'text-white/70 hover:text-white'
+                }`}
+                aria-label={t('common.profile')}
+                title={isLoggedIn ? t('common.profile') : t('common.login')}
+              >
+                <span className="material-symbols-outlined">
+                  {isLoggedIn ? 'account_circle' : 'person'}
+                </span>
+                {isLoggedIn && (
+                  <span className="absolute top-0 right-0 size-2.5 bg-green-500 rounded-full border-2 border-background-dark"></span>
+                )}
+              </button>
+            );
+          })()}
         </div>
       </header>
 
@@ -113,10 +163,10 @@ const StreamHub = () => {
         {/* Hero Section */}
         <div className="w-full max-w-4xl mx-auto text-center mb-12">
           <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-white">
-            Welcome to <span className="text-primary">StreamHub</span>
+            {t('home.title')}
           </h1>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Choose your preferred connection method below to start streaming your favorite content instantly.
+            {t('home.subtitle')}
           </p>
         </div>
 
@@ -125,67 +175,33 @@ const StreamHub = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card
               icon="dns"
-              title="Xtreme Code"
-              description="Connect via API credentials"
+              title={t('home.xtremeCodeTitle')}
+              description={t('home.xtremeCodeDesc')}
               onClick={() => handleCardClick('Xtreme Code')}
             />
             <Card
               icon="playlist_play"
-              title="M3U Playlist"
-              description="Load your playlist file or URL"
+              title={t('home.m3uTitle')}
+              description={t('home.m3uDesc')}
               onClick={() => handleCardClick('M3U Playlist')}
             />
             <Card
               icon="live_tv"
-              title="Live TV"
-              description="Watch channels directly"
+              title={t('home.liveTVTitle')}
+              description={t('home.liveTVDesc')}
               onClick={() => handleCardClick('Live TV')}
             />
             <Card
               icon="lock"
-              title="Login"
-              description="Access your account dashboard"
+              title={t('home.loginTitle')}
+              description={t('home.loginDesc')}
               onClick={() => handleCardClick('Login')}
             />
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-8 mt-auto w-full">
-        <div className="w-full max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-slate-500 text-sm">© 2024 StreamHub. All rights reserved.</p>
-          <div className="flex items-center gap-8">
-            <a
-              className="text-slate-500 hover:text-primary text-sm transition-colors cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('Support clicked');
-              }}
-            >
-              Support
-            </a>
-            <a
-              className="text-slate-500 hover:text-primary text-sm transition-colors cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('Terms clicked');
-              }}
-            >
-              Terms of Service
-            </a>
-            <a
-              className="text-slate-500 hover:text-primary text-sm transition-colors cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('Privacy clicked');
-              }}
-            >
-              Privacy Policy
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

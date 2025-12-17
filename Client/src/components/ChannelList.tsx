@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getLiveCategories, getLiveStreams } from '../services/xtremeCodeService';
 import { getM3UCategories, getM3UChannelsByCategory } from '../services/m3uService';
+import Footer from './Footer';
 
 type XtremeCodeStream = {
   stream_id: string;
@@ -38,6 +39,7 @@ type Channel = {
 
 const ChannelList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sourceType, setSourceType] = useState<'xtreme' | 'm3u'>('xtreme');
   const [credentials, setCredentials] = useState<{ serverUrl: string; username: string; password: string } | null>(null);
   const [m3uChannels, setM3UChannels] = useState<any[]>([]);
@@ -51,66 +53,122 @@ const ChannelList = () => {
 
   // localStorage'dan credentials'ları al (Xtreme Code veya M3U)
   useEffect(() => {
-    // Önce M3U kontrol et
-    const m3uLoaded = localStorage.getItem('m3uLoaded');
-    const m3uChannelsData = localStorage.getItem('m3uChannels');
+    // location.state'den sourceType'ı kontrol et (öncelikli)
+    const stateSourceType = (location.state as any)?.sourceType;
     
-    if (m3uLoaded === 'true' && m3uChannelsData) {
+    // Eğer state'de sourceType varsa, onu kullan
+    if (stateSourceType === 'xtreme' || stateSourceType === 'm3u') {
+      setSourceType(stateSourceType);
+    }
+    
+    // ÖNCE: activeXtremeCodeAccount kontrol et (kullanıcının kendi seçtiği hesap - en yüksek öncelik)
+    // Bu, kullanıcı xtreme-code-list'ten bir hesap seçtiğinde kullanılır
+    const activeXtremeAccount = localStorage.getItem('activeXtremeCodeAccount');
+    if (activeXtremeAccount) {
       try {
-        const channels = JSON.parse(m3uChannelsData);
-        if (Array.isArray(channels) && channels.length > 0) {
-          setM3UChannels(channels);
-          setSourceType('m3u');
-          
-          // M3U kategorilerini çıkar
-          const m3uCategories = getM3UCategories(channels);
-          setCategories(m3uCategories);
-          
-          // M3U kanallarını formatla
-          const formattedChannels: Channel[] = channels.map((ch: any) => ({
-            id: ch.id || ch.stream_id,
-            name: ch.name,
-            logo: ch.logo || ch.stream_icon || '',
-            status: 'live' as const,
-            currentProgram: 'Canlı Yayın',
-            category: ch.category_name || ch.group || 'Genel',
-            streamUrl: ch.streamUrl || ch.url,
-            streamId: ch.id || ch.stream_id,
-          }));
-          setChannels(formattedChannels);
-          setIsLoading(false);
-          return;
-        } else {
-          // M3U kanalları boş, M3U listesine yönlendir
-          setError('M3U playlist boş. Lütfen tekrar yükleyin.');
-          navigate('/m3u-list');
-          return;
+        const account = JSON.parse(activeXtremeAccount);
+        // Eğer sourceType belirtilmişse ve 'xtreme' ise, veya sourceType belirtilmemişse kullan
+        if (!stateSourceType || stateSourceType === 'xtreme') {
+          setCredentials({
+            serverUrl: account.serverUrl,
+            username: account.username,
+            password: account.password
+          });
+          setSourceType('xtreme');
+          return; // M3U kontrolünü atla
         }
       } catch (err) {
-        console.error('M3U parse error:', err);
-        setError('M3U playlist yüklenemedi. Lütfen tekrar deneyin.');
-        navigate('/m3u-list');
-        return;
+        console.error('Active Xtreme account parse error:', err);
       }
     }
     
-    // Xtreme Code kontrol et
-    const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
-    if (storedCredentials) {
-      try {
-        const creds = JSON.parse(storedCredentials);
-        setCredentials({
-          serverUrl: creds.serverUrl,
-          username: creds.username,
-          password: creds.password,
-        });
-        setSourceType('xtreme');
-      } catch (err) {
-        console.error('Credentials parse error:', err);
-        setError('Giriş bilgileri yüklenemedi. Lütfen tekrar giriş yapın.');
-        navigate('/xtreme-code-list');
+    // Eğer Xtreme Code için geldiyse ve activeXtremeAccount yoksa, eski yöntemi kontrol et
+    if (stateSourceType === 'xtreme') {
+      // Eski yöntem: xtremeCodeCredentials
+      const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
+      if (storedCredentials) {
+        try {
+          const creds = JSON.parse(storedCredentials);
+          setCredentials({
+            serverUrl: creds.serverUrl,
+            username: creds.username,
+            password: creds.password
+          });
+          setSourceType('xtreme');
+          return; // M3U kontrolünü atla
+        } catch (err) {
+          console.error('Credentials parse error:', err);
+        }
       }
-    } else {
+    }
+    
+    // Eğer M3U için geldiyse veya sourceType belirtilmemişse M3U kontrol et
+    if (stateSourceType === 'm3u' || !stateSourceType) {
+      const m3uLoaded = localStorage.getItem('m3uLoaded');
+      const m3uChannelsData = localStorage.getItem('m3uChannels');
+      
+      if (m3uLoaded === 'true' && m3uChannelsData) {
+        try {
+          const channels = JSON.parse(m3uChannelsData);
+          if (Array.isArray(channels) && channels.length > 0) {
+            setM3UChannels(channels);
+            setSourceType('m3u');
+            
+            // M3U kategorilerini çıkar
+            const m3uCategories = getM3UCategories(channels);
+            setCategories(m3uCategories);
+            
+            // M3U kanallarını formatla
+            const formattedChannels: Channel[] = channels.map((ch: any) => ({
+              id: ch.id || ch.stream_id,
+              name: ch.name,
+              logo: ch.logo || ch.stream_icon || '',
+              status: 'live' as const,
+              currentProgram: 'Canlı Yayın',
+              category: ch.category_name || ch.group || 'Genel',
+              streamUrl: ch.streamUrl || ch.url,
+              streamId: ch.id || ch.stream_id,
+            }));
+            setChannels(formattedChannels);
+            setIsLoading(false);
+            return;
+          } else {
+            // M3U kanalları boş, M3U listesine yönlendir
+            setError('M3U playlist boş. Lütfen tekrar yükleyin.');
+            navigate('/m3u-list');
+            return;
+          }
+        } catch (err) {
+          console.error('M3U parse error:', err);
+          setError('M3U playlist yüklenemedi. Lütfen tekrar deneyin.');
+          navigate('/m3u-list');
+          return;
+        }
+      }
+    }
+    
+    // Xtreme Code kontrol et (sadece sourceType 'm3u' değilse ve activeXtremeAccount yoksa)
+    // activeXtremeAccount zaten yukarıda kontrol edildi, buraya gelmemeli
+    if (stateSourceType !== 'm3u' && !activeXtremeAccount) {
+      const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
+      if (storedCredentials) {
+        try {
+          const creds = JSON.parse(storedCredentials);
+          setCredentials({
+            serverUrl: creds.serverUrl,
+            username: creds.username,
+            password: creds.password,
+          });
+          setSourceType('xtreme');
+          return;
+        } catch (err) {
+          console.error('Credentials parse error:', err);
+        }
+      }
+    }
+    
+    // Ne M3U ne de Xtreme Code bulunamadı
+    if (!credentials) {
       // Ne M3U ne de Xtreme Code var, önce M3U kontrol et, sonra Xtreme Code
       const m3uAccounts = localStorage.getItem('m3uAccounts');
       if (m3uAccounts) {
@@ -121,7 +179,7 @@ const ChannelList = () => {
         navigate('/xtreme-code-list');
       }
     }
-  }, [navigate]);
+  }, [navigate, location]);
 
   // Kategorileri yükle (cache ile)
   useEffect(() => {
@@ -608,6 +666,7 @@ const ChannelList = () => {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

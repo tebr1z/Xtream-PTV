@@ -25,7 +25,61 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['admin', 'user'],
-    default: 'admin' // Yeni kayıtlar otomatik admin olacak
+    default: 'user' // Yeni kayıtlar user role ile başlar
+  },
+  xtremeCodeAccounts: {
+    type: [{
+      id: String,
+      serverUrl: String,
+      tvName: String,
+      username: String,
+      password: String,
+      apiEndpoint: String,
+      createdAt: Date,
+      lastUsed: Date
+    }],
+    default: []
+  },
+  m3uAccounts: {
+    type: [{
+      id: String,
+      url: String,
+      name: String,
+      username: String,
+      password: String,
+      createdAt: Date,
+      lastUsed: Date,
+      channelCount: Number
+    }],
+    default: []
+  },
+  assignedPackage: {
+    name: String,
+    endDate: String,
+    quality: String,
+    channelCount: String,
+    status: String,
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    assignedAt: Date
+  },
+  adminXtremeCodeAccounts: {
+    type: [{
+      id: String,
+      serverUrl: String,
+      tvName: String,
+      username: String,
+      password: String,
+      apiEndpoint: String,
+      addedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      addedAt: Date
+    }],
+    default: []
   },
   createdAt: {
     type: Date,

@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://yourdomain.com/sitemap.xml
+
+# Disallow admin panel
+Disallow: /t4br1z
+
+# Allow all other pages
+Allow: /
+Allow: /xtreme-code
+Allow: /xtreme-code-list
+Allow: /m3u-playlist
+Allow: /m3u-list
+Allow: /login
+Allow: /channels
+Allow: /player
+Allow: /user
+Allow: /support
+Allow: /terms
+Allow: /privacy
+
+# Crawl-delay
+Crawl-delay: 1
+
+

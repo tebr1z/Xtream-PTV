@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <!-- Homepage - Turkish (Default) -->
+  <url>
+    <loc>https://yourdomain.com/tr</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr"/>
+  </url>
+  
+  <!-- Homepage - English -->
+  <url>
+    <loc>https://yourdomain.com/en</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr"/>
+  </url>
+  
+  <!-- Homepage - Russian -->
+  <url>
+    <loc>https://yourdomain.com/ru</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr"/>
+  </url>
+  
+  <!-- Homepage - Azerbaijani -->
+  <url>
+    <loc>https://yourdomain.com/az</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr"/>
+  </url>
+  
+  <!-- Xtreme Code -->
+  <url>
+    <loc>https://yourdomain.com/tr/xtreme-code</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr/xtreme-code"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en/xtreme-code"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru/xtreme-code"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az/xtreme-code"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr/xtreme-code"/>
+  </url>
+  
+  <!-- M3U Playlist -->
+  <url>
+    <loc>https://yourdomain.com/tr/m3u-playlist</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr/m3u-playlist"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en/m3u-playlist"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru/m3u-playlist"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az/m3u-playlist"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr/m3u-playlist"/>
+  </url>
+  
+  <!-- Support -->
+  <url>
+    <loc>https://yourdomain.com/tr/support</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr/support"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en/support"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru/support"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az/support"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr/support"/>
+  </url>
+  
+  <!-- Terms of Service -->
+  <url>
+    <loc>https://yourdomain.com/tr/terms</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr/terms"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en/terms"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru/terms"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az/terms"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr/terms"/>
+  </url>
+  
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://yourdomain.com/tr/privacy</loc>
+    <lastmod>2024-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://yourdomain.com/tr/privacy"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://yourdomain.com/en/privacy"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://yourdomain.com/ru/privacy"/>
+    <xhtml:link rel="alternate" hreflang="az" href="https://yourdomain.com/az/privacy"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yourdomain.com/tr/privacy"/>
+  </url>
+  
+</urlset>

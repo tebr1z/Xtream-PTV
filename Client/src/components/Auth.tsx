@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Toast from './Toast';
+import Footer from './Footer';
 
 type TabType = 'login' | 'register' | 'forgot';
 
@@ -33,6 +35,7 @@ const Auth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const switchTab = (tab: TabType) => {
     setActiveTab(tab);
@@ -93,7 +96,56 @@ const Auth = () => {
           localStorage.setItem('rememberMe', 'true');
         }
         
-        navigate('/');
+        // Backend'den kullanıcının hesaplarını yükle ve localStorage'a kaydet
+        // Mevcut localStorage hesapları ile birleştir (kayıp olmasın)
+        const { getSavedAccounts } = await import('../services/xtremeCodeService');
+        const { getSavedM3UAccounts } = await import('../services/m3uService');
+        
+        const localXtremeAccounts = getSavedAccounts();
+        const localM3UAccounts = getSavedM3UAccounts();
+        
+        // Backend'den gelen hesapları mevcut hesaplarla birleştir
+        const mergedXtremeAccounts = [...(data.xtremeCodeAccounts || [])];
+        localXtremeAccounts.forEach(localAcc => {
+          if (!mergedXtremeAccounts.find(acc => acc.id === localAcc.id)) {
+            mergedXtremeAccounts.push(localAcc);
+          }
+        });
+        
+        const mergedM3UAccounts = [...(data.m3uAccounts || [])];
+        localM3UAccounts.forEach(localAcc => {
+          if (!mergedM3UAccounts.find(acc => acc.id === localAcc.id)) {
+            mergedM3UAccounts.push(localAcc);
+          }
+        });
+        
+        // Birleştirilmiş hesapları localStorage'a kaydet
+        if (mergedXtremeAccounts.length > 0) {
+          localStorage.setItem('xtremeCodeAccounts', JSON.stringify(mergedXtremeAccounts));
+          // Eğer aktif hesap yoksa ilkini aktif yap
+          if (!localStorage.getItem('activeXtremeCodeAccount') && mergedXtremeAccounts[0]) {
+            localStorage.setItem('activeXtremeCodeAccount', JSON.stringify(mergedXtremeAccounts[0]));
+          }
+        }
+        
+        if (mergedM3UAccounts.length > 0) {
+          localStorage.setItem('m3uAccounts', JSON.stringify(mergedM3UAccounts));
+          // Eğer aktif hesap yoksa ilkini aktif yap
+          if (!localStorage.getItem('activeM3UAccount') && mergedM3UAccounts[0]) {
+            localStorage.setItem('activeM3UAccount', JSON.stringify(mergedM3UAccounts[0]));
+          }
+        }
+        
+        // Birleştirilmiş hesapları backend'e senkronize et
+        await syncLocalAccountsToBackend(data.token);
+        
+        // Başarı bildirimi göster
+        setToast({ message: 'Giriş başarılı! Hoş geldiniz.', type: 'success' });
+        
+        // Kısa bir gecikme sonrası yönlendir (bildirimi görmek için)
+        setTimeout(() => {
+          navigate('/');
+        }, 500);
       } else {
         setError(data.message || 'Giriş bilgileri hatalı');
       }
@@ -149,8 +201,25 @@ const Auth = () => {
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('isAuthenticated', 'true');
         
-        alert('Kayıt başarılı! Otomatik olarak giriş yapıldı.');
-        navigate('/');
+        // Backend'den kullanıcının hesaplarını yükle (register'da genelde boş olur)
+        if (data.xtremeCodeAccounts && data.xtremeCodeAccounts.length > 0) {
+          localStorage.setItem('xtremeCodeAccounts', JSON.stringify(data.xtremeCodeAccounts));
+        }
+        
+        if (data.m3uAccounts && data.m3uAccounts.length > 0) {
+          localStorage.setItem('m3uAccounts', JSON.stringify(data.m3uAccounts));
+        }
+        
+        // Mevcut localStorage'daki hesapları backend'e senkronize et
+        await syncLocalAccountsToBackend(data.token);
+        
+        // Başarı bildirimi göster
+        setToast({ message: 'Kayıt başarılı! Hoş geldiniz.', type: 'success' });
+        
+        // Kısa bir gecikme sonrası yönlendir (bildirimi görmek için)
+        setTimeout(() => {
+          navigate('/');
+        }, 500);
       } else {
         setError(data.message || 'Kayıt sırasında bir hata oluştu');
       }
@@ -185,7 +254,15 @@ const Auth = () => {
   };
 
   return (
-    <div className="bg-background-light dark:bg-[#11211e] font-display antialiased min-h-screen flex flex-col relative overflow-hidden w-full">
+    <>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <div className="bg-background-light dark:bg-[#11211e] font-display antialiased min-h-screen flex flex-col relative overflow-hidden w-full">
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-[#19e6c4]/5 blur-[120px]"></div>
@@ -533,9 +610,43 @@ const Auth = () => {
           Ana Sayfaya Dön
         </button>
       </div>
+      <Footer />
     </div>
+    </>
   );
 };
+
+// LocalStorage'daki hesapları backend'e senkronize et
+const syncLocalAccountsToBackend = async (token: string) => {
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      // LocalStorage'dan hesapları al
+      const { getSavedAccounts } = await import('../services/xtremeCodeService');
+      const { getSavedM3UAccounts } = await import('../services/m3uService');
+      
+      const xtremeAccounts = getSavedAccounts();
+      const m3uAccounts = getSavedM3UAccounts();
+      
+      // Eğer hesaplar varsa backend'e gönder
+      if (xtremeAccounts.length > 0 || m3uAccounts.length > 0) {
+        await fetch(`${backendUrl}/api/user-accounts/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            xtremeCodeAccounts: xtremeAccounts,
+            m3uAccounts: m3uAccounts
+          }),
+        });
+      }
+    } catch (err) {
+      console.error('Sync accounts error:', err);
+      // Hata olsa bile devam et
+    }
+  };
 
 export default Auth;
 

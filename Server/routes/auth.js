@@ -43,12 +43,12 @@ router.post('/register', async (req, res) => {
     // Password hash
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Yeni kullanıcı oluştur (otomatik admin role)
+    // Yeni kullanıcı oluştur (user role ile)
     const newUser = new User({
       username,
       email,
       password: hashedPassword,
-      role: 'admin' // Yeni kayıtlar otomatik admin
+      role: 'user' // Yeni kayıtlar user role ile başlar
     });
 
     await newUser.save();
@@ -74,7 +74,10 @@ router.post('/register', async (req, res) => {
         username: newUser.username,
         email: newUser.email,
         role: newUser.role
-      }
+      },
+      // Yeni kullanıcı için boş hesaplar
+      xtremeCodeAccounts: [],
+      m3uAccounts: []
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -156,7 +159,10 @@ router.post('/login', async (req, res) => {
         username: user.username,
         email: user.email,
         role: user.role
-      }
+      },
+      // Kullanıcının kayıtlı hesaplarını da gönder
+      xtremeCodeAccounts: user.xtremeCodeAccounts || [],
+      m3uAccounts: user.m3uAccounts || []
     });
   } catch (error) {
     console.error('Login error:', error);

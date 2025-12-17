@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import accountRoutes from './routes/accounts.js';
+import userAccountRoutes from './routes/userAccounts.js';
 import dotenv from 'dotenv';
 
 // .env dosyasını yükle
@@ -46,6 +47,9 @@ app.use('/api/users', userRoutes);
 
 // Account routes (anonymous accounts)
 app.use('/api/accounts', accountRoutes);
+
+// User account routes (logged in users)
+app.use('/api/user-accounts', userAccountRoutes);
 
 // Xtreme Code API Proxy endpoint
 app.get('/api/xtreme', async (req, res) => {

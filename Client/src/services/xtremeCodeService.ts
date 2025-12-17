@@ -456,6 +456,26 @@ export const saveAccount = (account: XtremeCodeCredentials): void => {
     }
     
     localStorage.setItem('xtremeCodeAccounts', JSON.stringify(accounts));
+    
+    // Eğer kullanıcı login olmuşsa backend'e de kaydet (async, hata olsa bile devam et)
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      fetch(`${backendUrl}/api/user-accounts/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xtremeCodeAccounts: accounts,
+          m3uAccounts: [] // Sadece Xtreme Code güncelleniyor
+        }),
+      }).catch(err => {
+        console.error('Backend sync error:', err);
+        // Hata olsa bile devam et
+      });
+    }
   } catch (error) {
     console.error('saveAccount error:', error);
   }
@@ -469,6 +489,25 @@ export const deleteAccount = (accountId: string): void => {
     const accounts = getSavedAccounts();
     const filtered = accounts.filter(a => a.id !== accountId);
     localStorage.setItem('xtremeCodeAccounts', JSON.stringify(filtered));
+    
+    // Eğer kullanıcı login olmuşsa backend'den de sil
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      fetch(`${backendUrl}/api/user-accounts/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xtremeCodeAccounts: filtered,
+          m3uAccounts: [] // Sadece Xtreme Code güncelleniyor
+        }),
+      }).catch(err => {
+        console.error('Backend sync error:', err);
+      });
+    }
   } catch (error) {
     console.error('deleteAccount error:', error);
   }

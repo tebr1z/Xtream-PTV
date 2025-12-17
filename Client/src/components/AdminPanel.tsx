@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSavedAccounts } from '../services/xtremeCodeService';
 import { getSavedM3UAccounts } from '../services/m3uService';
+import Footer from './Footer';
 
 type Subscription = {
   id: string;
@@ -126,17 +127,21 @@ const AdminPanel = () => {
 
       if (data.success) {
         // Backend'den gelen kullanıcıları formatla
-        const formattedUsers: User[] = data.users.map((u: any) => ({
-          id: u.id || u._id,
-          name: u.username,
-          email: u.email,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=19e6c4&color=000`,
-          userId: `#${u.id?.toString().slice(-6) || u._id?.toString().slice(-6)}`,
-          registerDate: new Date(u.createdAt).toLocaleDateString('tr-TR'),
-          lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('tr-TR') : 'Hiç',
-          status: u.isActive ? 'Aktif' : 'Pasif',
-          role: u.role || 'user',
-        }));
+        const formattedUsers: User[] = data.users.map((u: any) => {
+          // MongoDB _id'yi string'e çevir
+          const userId = String(u._id || u.id || '');
+          return {
+            id: userId,
+            name: u.username,
+            email: u.email,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=19e6c4&color=000`,
+            userId: `#${userId.slice(-6)}`,
+            registerDate: new Date(u.createdAt).toLocaleDateString('tr-TR'),
+            lastLogin: u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('tr-TR') : 'Hiç',
+            status: u.isActive ? 'Aktif' : 'Pasif',
+            role: u.role || 'user',
+          };
+        });
         setUsers(formattedUsers);
       } else {
         setError(data.message || 'Kullanıcılar yüklenemedi.');
@@ -720,8 +725,239 @@ const UserListView = ({
     return 'bg-gray-700/30 text-gray-400 border-gray-600/30';
   };
 
-  const handleEdit = (userId: string) => {
-    alert(`Kullanıcı düzenleme: ${userId}`);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showXtremeModal, setShowXtremeModal] = useState(false);
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [showXtremeListModal, setShowXtremeListModal] = useState(false);
+  const [editingXtremeAccount, setEditingXtremeAccount] = useState<any>(null);
+  const [userXtremeAccounts, setUserXtremeAccounts] = useState<any[]>([]);
+  const [userPackage, setUserPackage] = useState<any>(null);
+  const [xtremeForm, setXtremeForm] = useState({ serverUrl: '', tvName: '', username: '', password: '', apiEndpoint: '/player_api.php' });
+  const [packageForm, setPackageForm] = useState({ name: '', endDate: '', quality: '', channelCount: '', status: 'Aktif' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Kullanıcının Xtreme Code hesaplarını ve paketini yükle
+  const loadUserAccounts = async (user: User) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const userId = String(user.id || (user as any)._id || '');
+      
+      const response = await fetch(`${backendUrl}/api/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          setUserXtremeAccounts(data.user.adminXtremeCodeAccounts || []);
+          setUserPackage(data.user.assignedPackage || null);
+        }
+      }
+    } catch (err) {
+      console.error('Load user accounts error:', err);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    loadUserAccounts(user);
+    setShowXtremeListModal(true);
+  };
+
+  const handleEditXtremeAccount = (account: any) => {
+    setEditingXtremeAccount(account);
+    setXtremeForm({
+      serverUrl: account.serverUrl || '',
+      tvName: account.tvName || '',
+      username: account.username || '',
+      password: account.password || '',
+      apiEndpoint: account.apiEndpoint || '/player_api.php'
+    });
+    setShowXtremeListModal(false);
+    setShowXtremeModal(true);
+  };
+
+  const handleDeleteXtremeAccount = async (accountId: string) => {
+    if (!selectedUser || !confirm('Bu Xtreme Code hesabını silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const userId = String(selectedUser.id || (selectedUser as any)._id || '');
+
+      if (!userId || userId === 'undefined' || userId === 'null') {
+        alert('Kullanıcı ID bulunamadı.');
+        return;
+      }
+
+      if (!accountId) {
+        alert('Hesap ID bulunamadı.');
+        return;
+      }
+
+      console.log('Deleting Xtreme Code account:', { userId, accountId });
+      console.log('Request URL:', `${backendUrl}/api/users/${userId}/xtreme-code/${accountId}`);
+
+      const response = await fetch(`${backendUrl}/api/users/${userId}/xtreme-code/${accountId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Delete response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Delete response data:', data);
+        if (data.success) {
+          alert('Xtreme Code hesabı başarıyla silindi!');
+          await loadUserAccounts(selectedUser);
+        } else {
+          alert(data.message || 'Hesap silinirken hata oluştu.');
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('Delete error response:', response.status, errorText);
+        alert(`Hesap silinirken hata oluştu: ${response.status} - ${response.statusText}`);
+      }
+    } catch (err: any) {
+      console.error('Delete Xtreme Code error:', err);
+      alert(`Hesap silinirken hata oluştu: ${err.message || 'Bilinmeyen hata'}`);
+    }
+  };
+
+  const handleAddXtremeCode = async () => {
+    if (!selectedUser) return;
+    
+    if (!xtremeForm.serverUrl || !xtremeForm.username || !xtremeForm.password) {
+      alert('Lütfen tüm gerekli alanları doldurun.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      // User ID'yi doğru al (id veya _id) ve string'e çevir
+      const userId = String(selectedUser.id || (selectedUser as any)._id || '');
+      if (!userId || userId === 'undefined' || userId === 'null') {
+        alert('Kullanıcı ID bulunamadı.');
+        return;
+      }
+      
+      // Eğer düzenleme modundaysa PUT, yoksa POST
+      const isEdit = editingXtremeAccount !== null;
+      const url = isEdit 
+        ? `${backendUrl}/api/users/${userId}/xtreme-code/${editingXtremeAccount.id}`
+        : `${backendUrl}/api/users/${userId}/xtreme-code`;
+      const method = isEdit ? 'PUT' : 'POST';
+      
+      console.log(`${isEdit ? 'Updating' : 'Adding'} Xtreme Code for user:`, userId);
+      console.log('Request URL:', url);
+      console.log('Request body:', xtremeForm);
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(xtremeForm),
+      });
+
+      // Response status kontrolü
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', response.status, errorText);
+        alert(`Hata: ${response.status} - ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Xtreme Code hesabı başarıyla ${isEdit ? 'güncellendi' : 'eklendi'}!`);
+        setShowXtremeModal(false);
+        setEditingXtremeAccount(null);
+        setXtremeForm({ serverUrl: '', tvName: '', username: '', password: '', apiEndpoint: '/player_api.php' });
+        await loadUserAccounts(selectedUser);
+        if (showXtremeListModal) {
+          setShowXtremeListModal(true);
+        }
+      } else {
+        alert(data.message || `Xtreme Code hesabı ${isEdit ? 'güncellenirken' : 'eklenirken'} hata oluştu.`);
+      }
+    } catch (err: any) {
+      console.error(`${editingXtremeAccount ? 'Update' : 'Add'} Xtreme Code error:`, err);
+      alert(`Xtreme Code hesabı ${editingXtremeAccount ? 'güncellenirken' : 'eklenirken'} hata oluştu: ${err.message || 'Bilinmeyen hata'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAssignPackage = async () => {
+    if (!selectedUser) return;
+    
+    if (!packageForm.name) {
+      alert('Paket adı gereklidir.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      // User ID'yi doğru al (id veya _id) ve string'e çevir
+      const userId = String(selectedUser.id || (selectedUser as any)._id || '');
+      if (!userId || userId === 'undefined' || userId === 'null') {
+        alert('Kullanıcı ID bulunamadı.');
+        return;
+      }
+      
+      console.log('Assigning package for user:', userId);
+      
+      const response = await fetch(`${backendUrl}/api/users/${userId}/package`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(packageForm),
+      });
+
+      // Response status kontrolü
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', response.status, errorText);
+        alert(`Hata: ${response.status} - ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('IPTV paketi başarıyla atandı!');
+        setShowPackageModal(false);
+        setPackageForm({ name: '', endDate: '', quality: '', channelCount: '', status: 'Aktif' });
+        window.location.reload(); // Sayfayı yenile
+      } else {
+        alert(data.message || 'IPTV paketi atanırken hata oluştu.');
+      }
+    } catch (err: any) {
+      console.error('Assign package error:', err);
+      alert(`IPTV paketi atanırken hata oluştu: ${err.message || 'Bilinmeyen hata'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = (userId: string) => {
@@ -913,11 +1149,31 @@ const UserListView = ({
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleEdit(user.id)}
+                          onClick={() => handleEdit(user)}
                           className="rounded p-1.5 text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors"
-                          title="Düzenle"
+                          title="Xtreme Code Ekle"
                         >
-                          <span className="material-symbols-outlined text-lg">edit</span>
+                          <span className="material-symbols-outlined text-lg">add_circle</span>
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setSelectedUser(user);
+                            await loadUserAccounts(user);
+                            if (userPackage) {
+                              setPackageForm({
+                                name: userPackage.name || '',
+                                endDate: userPackage.endDate || '',
+                                quality: userPackage.quality || '',
+                                channelCount: userPackage.channelCount || '',
+                                status: userPackage.status || 'Aktif'
+                              });
+                            }
+                            setShowPackageModal(true);
+                          }}
+                          className="rounded p-1.5 text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors"
+                          title="IPTV Paketi Ata/Düzenle"
+                        >
+                          <span className="material-symbols-outlined text-lg">card_giftcard</span>
                         </button>
                         <button
                           onClick={() => handleDelete(user.id)}
@@ -1021,6 +1277,285 @@ const UserListView = ({
           </div>
         </div>
       </div>
+
+      {/* Xtreme Code Liste Modal */}
+      {showXtremeListModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">{selectedUser.name} - Xtreme Code Hesapları</h3>
+              <button
+                onClick={() => {
+                  setShowXtremeListModal(false);
+                  setSelectedUser(null);
+                }}
+                className="text-[#9db8b4] hover:text-white"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            {/* Mevcut Hesaplar Listesi */}
+            <div className="space-y-3 mb-6">
+              {userXtremeAccounts.length > 0 ? (
+                userXtremeAccounts.map((account, index) => (
+                  <div key={account.id || index} className="bg-[#11211e] border border-[#293836] rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-white font-semibold">{account.tvName || `Hesap ${index + 1}`}</span>
+                          <span className="text-xs text-[#9db8b4]">({account.serverUrl})</span>
+                        </div>
+                        <div className="text-sm text-[#9db8b4]">
+                          <span>Kullanıcı: {account.username}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditXtremeAccount(account)}
+                          className="px-3 py-1.5 bg-[#19e6c4] text-[#11211e] font-bold rounded-lg hover:bg-[#14b89d] transition-colors text-sm"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!account.id) {
+                              alert('Hesap ID bulunamadı. Lütfen sayfayı yenileyin.');
+                              return;
+                            }
+                            handleDeleteXtremeAccount(account.id);
+                          }}
+                          className="px-3 py-1.5 bg-red-500/20 text-red-400 font-bold rounded-lg hover:bg-red-500/30 transition-colors text-sm"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-[#9db8b4]">
+                  Henüz Xtreme Code hesabı eklenmemiş.
+                </div>
+              )}
+            </div>
+
+            {/* Yeni Hesap Ekle Butonu */}
+            <button
+              onClick={() => {
+                setEditingXtremeAccount(null);
+                setXtremeForm({ serverUrl: '', tvName: '', username: '', password: '', apiEndpoint: '/player_api.php' });
+                setShowXtremeListModal(false);
+                setShowXtremeModal(true);
+              }}
+              className="w-full bg-[#19e6c4] text-[#11211e] font-bold py-2 rounded-lg hover:bg-[#14b89d] transition-colors"
+            >
+              + Yeni Xtreme Code Hesabı Ekle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Xtreme Code Ekleme/Düzenleme Modal */}
+      {showXtremeModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Xtreme Code Ekle</h3>
+              <button
+                onClick={() => {
+                  setShowXtremeModal(false);
+                  setXtremeForm({ serverUrl: '', tvName: '', username: '', password: '', apiEndpoint: '/player_api.php' });
+                }}
+                className="text-[#9db8b4] hover:text-white"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Kullanıcı</label>
+                <p className="text-white">{selectedUser.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Sunucu URL *</label>
+                <input
+                  type="text"
+                  value={xtremeForm.serverUrl}
+                  onChange={(e) => setXtremeForm({ ...xtremeForm, serverUrl: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="http://example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">TV Adı</label>
+                <input
+                  type="text"
+                  value={xtremeForm.tvName}
+                  onChange={(e) => setXtremeForm({ ...xtremeForm, tvName: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="TV Adı"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Kullanıcı Adı *</label>
+                <input
+                  type="text"
+                  value={xtremeForm.username}
+                  onChange={(e) => setXtremeForm({ ...xtremeForm, username: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Kullanıcı Adı"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Şifre *</label>
+                <input
+                  type="password"
+                  value={xtremeForm.password}
+                  onChange={(e) => setXtremeForm({ ...xtremeForm, password: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Şifre"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">API Endpoint</label>
+                <input
+                  type="text"
+                  value={xtremeForm.apiEndpoint}
+                  onChange={(e) => setXtremeForm({ ...xtremeForm, apiEndpoint: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="/player_api.php"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleAddXtremeCode}
+                  disabled={isSubmitting}
+                  className="flex-1 bg-[#19e6c4] text-[#11211e] font-bold py-2 rounded-lg hover:bg-[#14b89d] transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? (editingXtremeAccount ? 'Güncelleniyor...' : 'Ekleniyor...') : (editingXtremeAccount ? 'Güncelle' : 'Ekle')}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowXtremeModal(false);
+                    setEditingXtremeAccount(null);
+                    setXtremeForm({ serverUrl: '', tvName: '', username: '', password: '', apiEndpoint: '/player_api.php' });
+                    if (userXtremeAccounts.length > 0) {
+                      setShowXtremeListModal(true);
+                    }
+                  }}
+                  className="flex-1 bg-[#293836] text-white font-bold py-2 rounded-lg hover:bg-[#354644] transition-colors"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IPTV Paketi Atama Modal */}
+      {showPackageModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">{userPackage ? 'IPTV Paketi Düzenle' : 'IPTV Paketi Ata'}</h3>
+              <button
+                onClick={() => {
+                  setShowPackageModal(false);
+                  setPackageForm({ name: '', endDate: '', quality: '', channelCount: '', status: 'Aktif' });
+                  setUserPackage(null);
+                }}
+                className="text-[#9db8b4] hover:text-white"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Kullanıcı</label>
+                <p className="text-white">{selectedUser.name}</p>
+              </div>
+              {userPackage && (
+                <div className="bg-[#11211e] border border-[#293836] rounded-lg p-4 mb-4">
+                  <p className="text-sm text-[#9db8b4] mb-2">Mevcut Paket:</p>
+                  <p className="text-white font-semibold">{userPackage.name}</p>
+                  <p className="text-xs text-[#9db8b4] mt-1">Bitiş: {userPackage.endDate || 'Sınırsız'}</p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Paket Adı *</label>
+                <input
+                  type="text"
+                  value={packageForm.name}
+                  onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Örn: Premium Paket"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Bitiş Tarihi</label>
+                <input
+                  type="text"
+                  value={packageForm.endDate}
+                  onChange={(e) => setPackageForm({ ...packageForm, endDate: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Örn: 24.12.2024 veya Sınırsız"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Kalite</label>
+                <input
+                  type="text"
+                  value={packageForm.quality}
+                  onChange={(e) => setPackageForm({ ...packageForm, quality: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Örn: HD, Full HD, 4K"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Kanal Sayısı</label>
+                <input
+                  type="text"
+                  value={packageForm.channelCount}
+                  onChange={(e) => setPackageForm({ ...packageForm, channelCount: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                  placeholder="Örn: 2,500+"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#9db8b4] mb-2">Durum</label>
+                <select
+                  value={packageForm.status}
+                  onChange={(e) => setPackageForm({ ...packageForm, status: e.target.value })}
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#19e6c4]"
+                >
+                  <option value="Aktif">Aktif</option>
+                  <option value="Pasif">Pasif</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleAssignPackage}
+                  disabled={isSubmitting}
+                  className="flex-1 bg-[#19e6c4] text-[#11211e] font-bold py-2 rounded-lg hover:bg-[#14b89d] transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? (userPackage ? 'Güncelleniyor...' : 'Atanıyor...') : (userPackage ? 'Güncelle' : 'Ata')}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPackageModal(false);
+                    setPackageForm({ name: '', endDate: '', quality: '', channelCount: '', status: 'Aktif' });
+                  }}
+                  className="flex-1 bg-[#293836] text-white font-bold py-2 rounded-lg hover:bg-[#354644] transition-colors"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1284,6 +1819,7 @@ const AnonymousAccountsView = () => {
           </p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

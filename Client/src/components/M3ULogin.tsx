@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Footer from './Footer';
 import { loadM3UPlaylist } from '../services/m3uService';
 
 type M3UCredentials = {
@@ -238,6 +239,7 @@ const M3ULogin = () => {
           Ana Sayfaya Dön
         </button>
       </div>
+      <Footer />
     </div>
   );
 };

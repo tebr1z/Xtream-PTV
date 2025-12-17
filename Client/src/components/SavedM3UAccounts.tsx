@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import Footer from './Footer';
+import LanguageSwitcher from './LanguageSwitcher';
 import { getSavedM3UAccounts, deleteM3UAccount, setActiveM3UAccount, loadM3UPlaylist, type M3UCredentials } from '../services/m3uService';
 
 const SavedM3UAccounts = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const params = useParams<{ lang?: string }>();
+  const lang = params.lang || 'tr';
   const [accounts, setAccounts] = useState<M3UCredentials[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,12 +42,12 @@ const SavedM3UAccounts = () => {
         await sendM3UAccount(account);
         
         // Kanal listesi sayfasına yönlendir
-        navigate('/channels');
+        navigate(`/${lang}/channels`);
       } else {
-        setError(response.message || 'Playlist yüklenemedi. Lütfen URL\'yi kontrol edin.');
+        setError(response.message || t('accounts.playlistLoadFailed'));
       }
     } catch (err) {
-      setError('Playlist yüklenirken hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('accounts.playlistLoadError'));
       console.error('Select account error:', err);
     } finally {
       setIsLoading(false);
@@ -49,7 +55,7 @@ const SavedM3UAccounts = () => {
   };
 
   const handleDeleteAccount = (accountId: string) => {
-    if (window.confirm('Bu playlist\'i silmek istediğinizden emin misiniz?')) {
+    if (window.confirm(t('accounts.deletePlaylistConfirm'))) {
       deleteM3UAccount(accountId);
       loadAccounts();
     }
@@ -88,10 +94,10 @@ const SavedM3UAccounts = () => {
         setEditingId(null);
         setEditForm(null);
       } else {
-        setError(response.message || 'Playlist yüklenemedi. Lütfen bilgileri kontrol edin.');
+        setError(response.message || t('accounts.playlistLoadFailed'));
       }
     } catch (err) {
-      setError('Playlist yüklenirken hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('accounts.playlistLoadError'));
       console.error('Edit account error:', err);
     } finally {
       setIsLoading(false);
@@ -105,10 +111,10 @@ const SavedM3UAccounts = () => {
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Bilinmiyor';
+    if (!dateString) return t('accounts.unknown');
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR', {
+      return date.toLocaleDateString(lang === 'tr' ? 'tr-TR' : lang === 'en' ? 'en-US' : lang === 'ru' ? 'ru-RU' : 'az-AZ', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -116,7 +122,7 @@ const SavedM3UAccounts = () => {
         minute: '2-digit'
       });
     } catch {
-      return 'Bilinmiyor';
+      return t('accounts.unknown');
     }
   };
 
@@ -137,17 +143,20 @@ const SavedM3UAccounts = () => {
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            <span>Ana Sayfa</span>
+            <span>{t('common.home')}</span>
           </button>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="size-8 text-primary">
-              <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
-              </svg>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="size-8 text-primary">
+                <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
+                </svg>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">{t('accounts.savedM3U')}</h1>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Kayıtlı M3U Playlist'ler</h1>
+            <LanguageSwitcher />
           </div>
-          <p className="text-[#9eb7a8] text-sm">Kayıtlı playlist'lerinizi yönetin veya yeni playlist ekleyin</p>
+          <p className="text-[#9eb7a8] text-sm">{t('accounts.managePlaylists')}</p>
         </div>
 
         {/* Error Message */}
@@ -160,11 +169,11 @@ const SavedM3UAccounts = () => {
         {/* New Account Button */}
         <div className="mb-6">
           <button
-            onClick={() => navigate('/m3u-playlist')}
+            onClick={() => navigate(`/${lang}/m3u-playlist`)}
             className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-black px-6 py-3 rounded-lg font-medium transition-colors"
           >
             <span className="material-symbols-outlined">add</span>
-            <span>Yeni Playlist Ekle</span>
+            <span>{t('accounts.addNewPlaylist')}</span>
           </button>
         </div>
 
@@ -174,13 +183,13 @@ const SavedM3UAccounts = () => {
             <div className="size-20 rounded-full bg-[#1a2c29] border border-[#293836] flex items-center justify-center mb-4">
               <span className="material-symbols-outlined text-4xl text-gray-500">playlist_play</span>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Henüz playlist eklenmemiş</h3>
-            <p className="text-gray-400 mb-6">Yeni playlist eklemek için yukarıdaki butona tıklayın</p>
+            <h3 className="text-xl font-semibold text-white mb-2">{t('accounts.noPlaylists')}</h3>
+            <p className="text-gray-400 mb-6">{t('accounts.addPlaylistMessage')}</p>
             <button
-              onClick={() => navigate('/m3u-playlist')}
+              onClick={() => navigate(`/${lang}/m3u-playlist`)}
               className="bg-primary hover:bg-primary-hover text-black px-6 py-2 rounded-lg font-medium transition-colors"
             >
-              İlk Playlist'i Ekle
+              {t('accounts.addFirstPlaylist')}
             </button>
           </div>
         ) : (
@@ -194,17 +203,17 @@ const SavedM3UAccounts = () => {
                   // Edit Mode
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">Playlist Adı</label>
+                      <label className="block text-sm font-medium text-white mb-2">{t('userPanel.playlistName')}</label>
                       <input
                         type="text"
                         value={editForm.name || ''}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
-                        placeholder="Playlist Adı"
+                        placeholder={t('userPanel.playlistName')}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">M3U URL</label>
+                      <label className="block text-sm font-medium text-white mb-2">{t('userPanel.m3uURL')}</label>
                       <input
                         type="text"
                         value={editForm.url}
@@ -213,7 +222,7 @@ const SavedM3UAccounts = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">Kullanıcı Adı (İsteğe Bağlı)</label>
+                      <label className="block text-sm font-medium text-white mb-2">{t('xtremeCode.username')} ({t('accounts.optional')})</label>
                       <input
                         type="text"
                         value={editForm.username || ''}
@@ -222,7 +231,7 @@ const SavedM3UAccounts = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2">Şifre (İsteğe Bağlı)</label>
+                      <label className="block text-sm font-medium text-white mb-2">{t('xtremeCode.password')} ({t('accounts.optional')})</label>
                       <input
                         type="password"
                         value={editForm.password || ''}
@@ -236,14 +245,14 @@ const SavedM3UAccounts = () => {
                         disabled={isLoading}
                         className="flex-1 bg-primary hover:bg-primary-hover text-black px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                       >
-                        Kaydet
+                        {t('common.save')}
                       </button>
                       <button
                         onClick={handleCancelEdit}
                         disabled={isLoading}
                         className="flex-1 bg-[#293836] hover:bg-[#3d5245] text-white px-4 py-2 rounded-lg font-medium transition-colors"
                       >
-                        İptal
+                        {t('common.cancel')}
                       </button>
                     </div>
                   </div>
@@ -252,13 +261,13 @@ const SavedM3UAccounts = () => {
                   <>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-white mb-1">{account.name || 'İsimsiz Playlist'}</h3>
+                        <h3 className="text-xl font-bold text-white mb-1">{account.name || t('accounts.unnamedPlaylist')}</h3>
                         <p className="text-sm text-gray-400 truncate">{account.url}</p>
                         {account.username && (
-                          <p className="text-xs text-gray-500 mt-1">Kullanıcı: {account.username}</p>
+                          <p className="text-xs text-gray-500 mt-1">{t('accounts.user')}: {account.username}</p>
                         )}
                         {account.channelCount && (
-                          <p className="text-xs text-primary mt-1">{account.channelCount} kanal</p>
+                          <p className="text-xs text-primary mt-1">{account.channelCount} {t('accounts.channels')}</p>
                         )}
                       </div>
                       <div className="size-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -269,11 +278,11 @@ const SavedM3UAccounts = () => {
                     <div className="space-y-2 mb-4 text-xs text-gray-400">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[16px]">schedule</span>
-                        <span>Son kullanım: {formatDate(account.lastUsed)}</span>
+                        <span>{t('accounts.lastUsed')}: {formatDate(account.lastUsed)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                        <span>Oluşturulma: {formatDate(account.createdAt)}</span>
+                        <span>{t('accounts.created')}: {formatDate(account.createdAt)}</span>
                       </div>
                     </div>
 
@@ -286,12 +295,12 @@ const SavedM3UAccounts = () => {
                         {isLoading ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
-                            <span>Yükleniyor...</span>
+                            <span>{t('accounts.loading')}</span>
                           </>
                         ) : (
                           <>
                             <span className="material-symbols-outlined text-[18px]">play_arrow</span>
-                            <span>Yükle</span>
+                            <span>{t('accounts.load')}</span>
                           </>
                         )}
                       </button>
@@ -299,7 +308,7 @@ const SavedM3UAccounts = () => {
                         onClick={() => handleEditAccount(account)}
                         disabled={isLoading}
                         className="bg-[#293836] hover:bg-[#3d5245] text-white px-4 py-2 rounded-lg transition-colors"
-                        title="Düzenle"
+                        title={t('common.edit')}
                       >
                         <span className="material-symbols-outlined text-[18px]">edit</span>
                       </button>
@@ -307,7 +316,7 @@ const SavedM3UAccounts = () => {
                         onClick={() => handleDeleteAccount(account.id!)}
                         disabled={isLoading}
                         className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors"
-                        title="Sil"
+                        title={t('common.delete')}
                       >
                         <span className="material-symbols-outlined text-[18px]">delete</span>
                       </button>
@@ -319,6 +328,7 @@ const SavedM3UAccounts = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

@@ -177,6 +177,26 @@ export const saveM3UAccount = (account: M3UCredentials): void => {
     }
     
     localStorage.setItem('m3uAccounts', JSON.stringify(accounts));
+    
+    // Eğer kullanıcı login olmuşsa backend'e de kaydet (async, hata olsa bile devam et)
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      fetch(`${backendUrl}/api/user-accounts/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xtremeCodeAccounts: [], // Sadece M3U güncelleniyor
+          m3uAccounts: accounts
+        }),
+      }).catch(err => {
+        console.error('Backend sync error:', err);
+        // Hata olsa bile devam et
+      });
+    }
   } catch (error) {
     console.error('saveM3UAccount error:', error);
   }
@@ -190,6 +210,25 @@ export const deleteM3UAccount = (accountId: string): void => {
     const accounts = getSavedM3UAccounts();
     const filtered = accounts.filter(a => a.id !== accountId);
     localStorage.setItem('m3uAccounts', JSON.stringify(filtered));
+    
+    // Eğer kullanıcı login olmuşsa backend'den de sil
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      fetch(`${backendUrl}/api/user-accounts/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xtremeCodeAccounts: [], // Sadece M3U güncelleniyor
+          m3uAccounts: filtered
+        }),
+      }).catch(err => {
+        console.error('Backend sync error:', err);
+      });
+    }
   } catch (error) {
     console.error('deleteM3UAccount error:', error);
   }

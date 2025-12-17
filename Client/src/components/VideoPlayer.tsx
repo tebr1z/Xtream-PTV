@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getLiveCategories, getLiveStreams, getEpg } from '../services/xtremeCodeService';
 import { getM3UCategories, getM3UChannelsByCategory } from '../services/m3uService';
 import Hls from 'hls.js';
+import Footer from './Footer';
 
 type XtremeCodeStream = {
   stream_id: string;
@@ -998,6 +999,7 @@ const VideoPlayer = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

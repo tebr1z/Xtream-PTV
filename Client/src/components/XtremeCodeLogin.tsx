@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { connectXtremeCode } from '../services/xtremeCodeService';
+import Footer from './Footer';
+import LanguageSwitcher from './LanguageSwitcher';
 
 type XtremeCodeCredentials = {
   serverUrl: string;
@@ -11,6 +14,7 @@ type XtremeCodeCredentials = {
 
 const XtremeCodeLogin = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     serverUrl: '',
     tvName: '',
@@ -66,10 +70,10 @@ const XtremeCodeLogin = () => {
         // Dashboard'a yönlendir
         navigate('/channels');
       } else {
-        setError(response.message || 'Giriş bilgileri hatalı');
+        setError(response.message || t('xtremeCode.loginError'));
       }
     } catch (err) {
-      setError('Bağlantı hatası oluştu. Lütfen tekrar deneyin.');
+      setError(t('xtremeCode.connectionError'));
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -93,8 +97,11 @@ const XtremeCodeLogin = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6 text-primary border border-primary/20">
               <span className="material-symbols-outlined !text-4xl">live_tv</span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Xtreme Code IPTV</h1>
-            <p className="text-[#9eb7a8] text-sm font-medium">Lütfen abonelik bilgilerinizi giriniz.</p>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-3xl font-bold tracking-tight text-white">{t('xtremeCode.title')}</h1>
+              <LanguageSwitcher />
+            </div>
+            <p className="text-[#9eb7a8] text-sm font-medium">{t('xtremeCode.subtitle')}</p>
           </div>
 
           {/* Form Section */}
@@ -102,7 +109,7 @@ const XtremeCodeLogin = () => {
             <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
               {/* Server URL */}
               <div>
-                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="serverUrl">Link</label>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="serverUrl">{t('xtremeCode.link')}</label>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
                     id="serverUrl"
@@ -110,7 +117,7 @@ const XtremeCodeLogin = () => {
                     value={formData.serverUrl}
                     onChange={handleChange}
                     className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                    placeholder="http://domain.com:port"
+                    placeholder={t('xtremeCode.linkPlaceholder')}
                     type="text"
                     required
                   />
@@ -122,7 +129,7 @@ const XtremeCodeLogin = () => {
 
               {/* TV Name */}
               <div>
-                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="tvName">TV Name</label>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="tvName">{t('xtremeCode.tvName')}</label>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
                     id="tvName"
@@ -130,7 +137,7 @@ const XtremeCodeLogin = () => {
                     value={formData.tvName}
                     onChange={handleChange}
                     className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                    placeholder="TV Name"
+                    placeholder={t('xtremeCode.tvNamePlaceholder')}
                     type="text"
                     required
                   />
@@ -142,7 +149,7 @@ const XtremeCodeLogin = () => {
 
               {/* Username */}
               <div>
-                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="username">Username</label>
+                <label className="block text-sm font-medium text-white mb-2 ml-1" htmlFor="username">{t('xtremeCode.username')}</label>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
                     id="username"
@@ -150,7 +157,7 @@ const XtremeCodeLogin = () => {
                     value={formData.username}
                     onChange={handleChange}
                     className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                    placeholder="Username"
+                    placeholder={t('xtremeCode.usernamePlaceholder')}
                     type="text"
                     required
                   />
@@ -163,7 +170,7 @@ const XtremeCodeLogin = () => {
               {/* Password */}
               <div>
                 <div className="flex justify-between items-center mb-2 ml-1">
-                  <label className="block text-sm font-medium text-white" htmlFor="password">Password</label>
+                  <label className="block text-sm font-medium text-white" htmlFor="password">{t('xtremeCode.password')}</label>
                 </div>
                 <div className="flex w-full items-stretch rounded-xl shadow-sm group focus-within:ring-2 focus-within:ring-primary/50 transition-all">
                   <input
@@ -172,7 +179,7 @@ const XtremeCodeLogin = () => {
                     value={formData.password}
                     onChange={handleChange}
                     className="form-input flex-1 w-full bg-[#1c2620] border border-r-0 border-[#3d5245] text-white placeholder:text-[#5a7063] rounded-l-xl focus:border-[#3d5245] focus:ring-0 h-12 px-4 text-base"
-                    placeholder="••••••••"
+                    placeholder={t('xtremeCode.passwordPlaceholder')}
                     type={showPassword ? 'text' : 'password'}
                     required
                   />
@@ -180,7 +187,7 @@ const XtremeCodeLogin = () => {
                     type="button"
                     className="flex items-center justify-center px-4 bg-[#1c2620] border border-l-0 border-[#3d5245] rounded-r-xl text-[#9eb7a8] cursor-pointer hover:text-white transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                    aria-label={showPassword ? t('xtremeCode.hidePassword') : t('xtremeCode.showPassword')}
                   >
                     <span className="material-symbols-outlined">
                       {showPassword ? 'visibility' : 'visibility_off'}
@@ -196,7 +203,7 @@ const XtremeCodeLogin = () => {
                   disabled={isLoading}
                   className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-6 bg-primary hover:bg-[#2fd16f] active:scale-[0.98] transition-all text-[#111714] text-base font-bold leading-normal tracking-[0.015em] shadow-[0_0_20px_rgba(54,226,123,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="truncate">{isLoading ? 'Bağlanıyor...' : 'Bağlan'}</span>
+                  <span className="truncate">{isLoading ? t('xtremeCode.connecting') : t('xtremeCode.connect')}</span>
                   <span className="material-symbols-outlined ml-2 text-xl">login</span>
                 </button>
 
@@ -210,7 +217,7 @@ const XtremeCodeLogin = () => {
                     }}
                   >
                     <span className="material-symbols-outlined text-[18px]">help</span>
-                    Yardım
+                    {t('common.help')}
                   </a>
                   {error && (
                     <div className="flex items-center gap-2 text-red-400 text-xs">
@@ -228,7 +235,7 @@ const XtremeCodeLogin = () => {
         </div>
 
         {/* Bottom Copyright */}
-        <p className="mt-8 text-xs text-[#5a7063]">© 2023 Xtreme Code IPTV Player. All rights reserved.</p>
+        <p className="mt-8 text-xs text-[#5a7063]">{t('xtremeCode.copyright')}</p>
 
         {/* Back Button */}
         <button
@@ -236,7 +243,7 @@ const XtremeCodeLogin = () => {
           className="mt-4 text-[#9eb7a8] hover:text-primary transition-colors flex items-center gap-2 text-sm"
         >
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Ana Sayfaya Dön
+          {t('common.backToHome')}
         </button>
       </div>
     </div>
