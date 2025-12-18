@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Toast from './Toast';
 import Footer from './Footer';
 
@@ -7,6 +8,9 @@ type TabType = 'login' | 'register' | 'forgot';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const params = useParams<{ lang?: string }>();
+  const { i18n, t } = useTranslation();
+  const lang = params.lang || i18n.language?.split('-')[0] || 'az';
   const [activeTab, setActiveTab] = useState<TabType>('login');
   
   // Login form state
@@ -96,6 +100,15 @@ const Auth = () => {
           localStorage.setItem('rememberMe', 'true');
         }
         
+        // Admin ise admin paneline yönlendir
+        if (data.user?.role === 'admin') {
+          setToast({ message: t('auth.loginSuccess'), type: 'success' });
+          setTimeout(() => {
+            navigate('/t4br1z');
+          }, 500);
+          return;
+        }
+        
         // Backend'den kullanıcının hesaplarını yükle ve localStorage'a kaydet
         // Mevcut localStorage hesapları ile birleştir (kayıp olmasın)
         const { getSavedAccounts } = await import('../services/xtremeCodeService');
@@ -140,18 +153,27 @@ const Auth = () => {
         await syncLocalAccountsToBackend(data.token);
         
         // Başarı bildirimi göster
-        setToast({ message: 'Giriş başarılı! Hoş geldiniz.', type: 'success' });
+        setToast({ message: t('auth.loginSuccess'), type: 'success' });
         
         // Kısa bir gecikme sonrası yönlendir (bildirimi görmek için)
         setTimeout(() => {
           navigate('/');
         }, 500);
       } else {
-        setError(data.message || 'Giriş bilgileri hatalı');
+        // Email verification hatası kontrolü (Admin için atla)
+        if (data.emailVerified === false && data.user?.role !== 'admin') {
+          setError(data.message || t('auth.emailNotVerified'));
+          // Email verification sayfasına yönlendirme linki göster
+          setTimeout(() => {
+            navigate(`/verify-email?email=${encodeURIComponent(loginData.usernameOrEmail)}`);
+          }, 2000);
+        } else {
+          setError(data.message || t('auth.loginError'));
+        }
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('auth.loginError'));
     } finally {
       setIsLoading(false);
     }
@@ -163,17 +185,17 @@ const Auth = () => {
 
     // Validation
     if (registerData.password !== registerData.confirmPassword) {
-      setError('Şifreler eşleşmiyor');
+      setError(t('auth.passwordMismatch'));
       return;
     }
 
     if (registerData.password.length < 8) {
-      setError('Şifre en az 8 karakter olmalıdır');
+      setError(t('auth.passwordTooShort'));
       return;
     }
 
     if (!registerData.acceptTerms) {
-      setError('Lütfen hizmet şartlarını kabul edin');
+      setError(t('auth.acceptTermsError'));
       return;
     }
 
@@ -196,36 +218,51 @@ const Auth = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Token ve kullanıcı bilgilerini kaydet
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('isAuthenticated', 'true');
-        
-        // Backend'den kullanıcının hesaplarını yükle (register'da genelde boş olur)
-        if (data.xtremeCodeAccounts && data.xtremeCodeAccounts.length > 0) {
-          localStorage.setItem('xtremeCodeAccounts', JSON.stringify(data.xtremeCodeAccounts));
+        // Email verification gerekiyor
+        if (data.emailSent && !data.user?.emailVerified) {
+          setToast({ 
+            message: 'Kayıt başarılı! Lütfen email adresinizi doğrulayın. Email kutunuzu kontrol edin.', 
+            type: 'info' 
+          });
+          // Email verification sayfasına yönlendir
+          setTimeout(() => {
+            navigate(`/verify-email?email=${encodeURIComponent(registerData.email)}`);
+          }, 1500);
+          return;
         }
         
-        if (data.m3uAccounts && data.m3uAccounts.length > 0) {
-          localStorage.setItem('m3uAccounts', JSON.stringify(data.m3uAccounts));
+        // Email zaten doğrulanmışsa (normalde olmaz ama güvenlik için)
+        if (data.token && data.user) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('isAuthenticated', 'true');
+          
+          // Backend'den kullanıcının hesaplarını yükle (register'da genelde boş olur)
+          if (data.xtremeCodeAccounts && data.xtremeCodeAccounts.length > 0) {
+            localStorage.setItem('xtremeCodeAccounts', JSON.stringify(data.xtremeCodeAccounts));
+          }
+          
+          if (data.m3uAccounts && data.m3uAccounts.length > 0) {
+            localStorage.setItem('m3uAccounts', JSON.stringify(data.m3uAccounts));
+          }
+          
+          // Mevcut localStorage'daki hesapları backend'e senkronize et
+          await syncLocalAccountsToBackend(data.token);
+          
+          // Başarı bildirimi göster
+          setToast({ message: 'Kayıt başarılı! Hoş geldiniz.', type: 'success' });
+          
+          // Kısa bir gecikme sonrası yönlendir (bildirimi görmek için)
+          setTimeout(() => {
+            navigate('/');
+          }, 500);
         }
-        
-        // Mevcut localStorage'daki hesapları backend'e senkronize et
-        await syncLocalAccountsToBackend(data.token);
-        
-        // Başarı bildirimi göster
-        setToast({ message: 'Kayıt başarılı! Hoş geldiniz.', type: 'success' });
-        
-        // Kısa bir gecikme sonrası yönlendir (bildirimi görmek için)
-        setTimeout(() => {
-          navigate('/');
-        }, 500);
       } else {
-        setError(data.message || 'Kayıt sırasında bir hata oluştu');
+        setError(data.message || t('auth.registerError'));
       }
     } catch (err) {
       console.error('Register error:', err);
-      setError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('auth.registerError'));
     } finally {
       setIsLoading(false);
     }
@@ -234,16 +271,48 @@ const Auth = () => {
   const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!forgotData.email) {
+      setError(t('auth.emailAddress') + ' ' + t('common.required') || 'Email adresi gereklidir.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Forgot password API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!');
-      setForgotData({ email: '' });
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotData.email }),
+      });
+
+      // Response'un JSON olup olmadığını kontrol et
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        setError(`Sunucu hatası (${response.status}). Lütfen daha sonra tekrar deneyin.`);
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setToast({ 
+          message: data.message || 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!', 
+          type: 'success' 
+        });
+        setForgotData({ email: '' });
+      } else {
+        setError(data.message || 'Şifre sıfırlama isteği gönderilirken bir hata oluştu.');
+      }
     } catch (err) {
-      setError('E-posta gönderilirken bir hata oluştu');
+      console.error('Forgot password error:', err);
+      setError('Şifre sıfırlama isteği gönderilirken bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.');
     } finally {
       setIsLoading(false);
     }
@@ -278,16 +347,16 @@ const Auth = () => {
                 <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
               </svg>
             </div>
-            <h1 className="text-gray-900 dark:text-white text-lg font-bold tracking-tight">IPTV Portal</h1>
+            <h1 className="text-gray-900 dark:text-white text-lg font-bold tracking-tight">{t('common.appName')}</h1>
           </div>
-          <a
+            <a
             onClick={(e) => {
               e.preventDefault();
-              alert('Yardım sayfası yakında eklenecek!');
+              navigate(`/${lang}/support`);
             }}
             className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-[#19e6c4] transition-colors hidden sm:block cursor-pointer"
           >
-            Yardım & Destek
+            {t('auth.helpSupport')}
           </a>
         </div>
       </header>
@@ -300,8 +369,8 @@ const Auth = () => {
             <div className="w-full h-full bg-gradient-to-br from-[#19e6c4]/20 via-gray-800 to-gray-900"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-[#1c2625] to-transparent"></div>
             <div className="absolute bottom-4 left-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Hoşgeldiniz</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">IPTV hesabınıza erişmek için lütfen giriş yapın.</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('auth.welcome')}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('auth.welcomeSubtitle')}</p>
             </div>
           </div>
 
@@ -316,7 +385,7 @@ const Auth = () => {
                     : 'text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
-                Giriş Yap
+                {t('auth.login')}
               </button>
               <button
                 onClick={() => switchTab('register')}
@@ -326,7 +395,7 @@ const Auth = () => {
                     : 'text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
-                Kayıt Ol
+                {t('auth.register')}
               </button>
               <button
                 onClick={() => switchTab('forgot')}
@@ -336,7 +405,7 @@ const Auth = () => {
                     : 'text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
-                Şifremi Unuttum
+                {t('auth.forgotPassword')}
               </button>
             </div>
           </div>
@@ -356,7 +425,7 @@ const Auth = () => {
               <form className="flex flex-col gap-5" onSubmit={handleLoginSubmit}>
                 <div className="space-y-4">
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Kullanıcı Adı veya E-posta</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.usernameOrEmail')}</span>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-500">
                         <span className="material-symbols-outlined text-[20px]">person</span>
@@ -366,7 +435,7 @@ const Auth = () => {
                         value={loginData.usernameOrEmail}
                         onChange={handleLoginChange}
                         className="w-full pl-10 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="kullanici@ornek.com"
+                        placeholder={t('auth.usernameOrEmailPlaceholder')}
                         type="text"
                         required
                       />
@@ -374,7 +443,7 @@ const Auth = () => {
                   </label>
                   <label className="block space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Şifre</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.password')}</span>
                     </div>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-500">
@@ -385,7 +454,7 @@ const Auth = () => {
                         value={loginData.password}
                         onChange={handleLoginChange}
                         className="w-full pl-10 pr-10 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="••••••••"
+                        placeholder={t('auth.passwordPlaceholder')}
                         type={showPassword ? 'text' : 'password'}
                         required
                       />
@@ -410,7 +479,7 @@ const Auth = () => {
                       onChange={handleLoginChange}
                       className="rounded border-gray-300 dark:border-gray-600 text-[#19e6c4] focus:ring-[#19e6c4] bg-gray-50 dark:bg-[#151f1d]"
                     />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Beni Hatırla</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{t('auth.rememberMe')}</span>
                   </label>
                 </div>
                 <button
@@ -418,7 +487,7 @@ const Auth = () => {
                   disabled={isLoading}
                   className="w-full h-12 rounded-lg bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] font-bold text-sm tracking-wide shadow-lg shadow-[#19e6c4]/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>{isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}</span>
+                  <span>{isLoading ? t('auth.loggingIn') : t('auth.loginButton')}</span>
                   <span className="material-symbols-outlined text-lg transition-transform group-hover:translate-x-1">arrow_forward</span>
                 </button>
                 <div className="relative py-2">
@@ -426,7 +495,7 @@ const Auth = () => {
                     <div className="w-full border-t border-gray-200 dark:border-[#293836]"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white dark:bg-[#1c2625] text-gray-500">veya M3U ile devam et</span>
+                    <span className="px-2 bg-white dark:bg-[#1c2625] text-gray-500">{t('auth.orContinueWithM3U')}</span>
                   </div>
                 </div>
                 <button
@@ -435,7 +504,7 @@ const Auth = () => {
                   className="w-full h-12 rounded-lg border border-gray-300 dark:border-[#293836] bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-lg">playlist_play</span>
-                  <span>M3U URL Yükle</span>
+                  <span>{t('auth.loadM3U')}</span>
                 </button>
               </form>
             )}
@@ -446,39 +515,39 @@ const Auth = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="block space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Kullanıcı Adı</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.username')}</span>
                       <input
                         name="username"
                         value={registerData.username}
                         onChange={handleRegisterChange}
                         className="w-full px-4 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="Kullanıcı adı"
+                        placeholder={t('auth.usernamePlaceholder')}
                         type="text"
                         required
                       />
                     </label>
                     <label className="block space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">E-posta</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.email')}</span>
                       <input
                         name="email"
                         value={registerData.email}
                         onChange={handleRegisterChange}
                         className="w-full px-4 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="isim@ornek.com"
+                        placeholder={t('auth.emailPlaceholder')}
                         type="email"
                         required
                       />
                     </label>
                   </div>
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Şifre</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.password')}</span>
                     <div className="relative">
                       <input
                         name="password"
                         value={registerData.password}
                         onChange={handleRegisterChange}
                         className="w-full px-4 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="En az 8 karakter"
+                        placeholder={t('auth.passwordMinLength')}
                         type={showRegisterPassword ? 'text' : 'password'}
                         required
                       />
@@ -494,14 +563,14 @@ const Auth = () => {
                     </div>
                   </label>
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Şifre Tekrar</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.confirmPassword')}</span>
                     <div className="relative">
                       <input
                         name="confirmPassword"
                         value={registerData.confirmPassword}
                         onChange={handleRegisterChange}
                         className="w-full px-4 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="Şifrenizi doğrulayın"
+                        placeholder={t('auth.confirmPasswordPlaceholder')}
                         type={showConfirmPassword ? 'text' : 'password'}
                         required
                       />
@@ -525,16 +594,14 @@ const Auth = () => {
                     onChange={handleRegisterChange}
                     className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#19e6c4] focus:ring-[#19e6c4] bg-gray-50 dark:bg-[#151f1d]"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
-                    Hesap oluşturarak <a className="text-[#19e6c4] hover:underline cursor-pointer" onClick={(e) => { e.preventDefault(); alert('Hizmet Şartları'); }}>Hizmet Şartları</a>'nı ve <a className="text-[#19e6c4] hover:underline cursor-pointer" onClick={(e) => { e.preventDefault(); alert('Gizlilik Politikası'); }}>Gizlilik Politikası</a>'nı kabul etmiş olursunuz.
-                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug" dangerouslySetInnerHTML={{ __html: t('auth.acceptTerms', { lang }).replace(/\{\{lang\}\}/g, lang) }} />
                 </div>
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="w-full h-12 rounded-lg bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] font-bold text-sm tracking-wide shadow-lg shadow-[#19e6c4]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
+                  {isLoading ? t('auth.registering') : t('auth.registerButton')}
                 </button>
               </form>
             )}
@@ -546,14 +613,14 @@ const Auth = () => {
                   <div className="mx-auto w-12 h-12 bg-[#19e6c4]/10 rounded-full flex items-center justify-center mb-3">
                     <span className="material-symbols-outlined text-[#19e6c4] text-2xl">mark_email_read</span>
                   </div>
-                  <h3 className="text-gray-900 dark:text-white font-bold text-lg">Şifrenizi mi unuttunuz?</h3>
+                  <h3 className="text-gray-900 dark:text-white font-bold text-lg">{t('auth.forgotPasswordTitle')}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 px-4">
-                    Endişelenmeyin! E-posta adresinizi girin, size şifrenizi sıfırlamanız için bir bağlantı gönderelim.
+                    {t('auth.forgotPasswordMessage')}
                   </p>
                 </div>
                 <div className="space-y-4">
                   <label className="block space-y-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">E-posta Adresi</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('auth.emailAddress')}</span>
                     <div className="relative">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 dark:text-gray-500">
                         <span className="material-symbols-outlined text-[20px]">mail</span>
@@ -563,7 +630,7 @@ const Auth = () => {
                         value={forgotData.email}
                         onChange={handleForgotChange}
                         className="w-full pl-10 h-12 rounded-lg bg-gray-50 dark:bg-[#151f1d] border border-gray-300 dark:border-[#293836] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:border-[#19e6c4] focus:ring-1 focus:ring-[#19e6c4] text-sm transition-shadow outline-none"
-                        placeholder="isim@ornek.com"
+                        placeholder={t('auth.emailPlaceholder')}
                         type="email"
                         required
                       />
@@ -575,7 +642,7 @@ const Auth = () => {
                   disabled={isLoading}
                   className="w-full h-12 rounded-lg bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] font-bold text-sm tracking-wide shadow-lg shadow-[#19e6c4]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Gönderiliyor...' : 'Şifre Sıfırlama Bağlantısı Gönder'}
+                  {isLoading ? t('auth.sending') : t('auth.sendResetLink')}
                 </button>
                 <button
                   type="button"
@@ -583,7 +650,7 @@ const Auth = () => {
                   className="w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-[#19e6c4] transition-colors flex items-center justify-center gap-1"
                 >
                   <span className="material-symbols-outlined text-sm">arrow_back</span>
-                  Giriş ekranına dön
+                  {t('auth.backToLogin')}
                 </button>
               </form>
             )}
@@ -591,10 +658,10 @@ const Auth = () => {
 
           {/* Footer of Card */}
           <div className="px-6 py-4 bg-gray-50 dark:bg-[#151f1d] border-t border-gray-200 dark:border-[#293836] flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-            <span>Versiyon 2.4.0</span>
+            <span>{t('auth.version')}</span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              Sunucu Çevrimiçi
+              {t('auth.serverOnline')}
             </span>
           </div>
         </div>
@@ -607,7 +674,7 @@ const Auth = () => {
           className="text-gray-500 dark:text-gray-400 hover:text-[#19e6c4] transition-colors flex items-center gap-2 text-sm"
         >
           <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-          Ana Sayfaya Dön
+          {t('auth.backToHome')}
         </button>
       </div>
       <Footer />

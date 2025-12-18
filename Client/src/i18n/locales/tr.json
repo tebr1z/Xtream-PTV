@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "StreamHub",
+    "appName": "NovaLive",
     "welcome": "Hoş Geldiniz",
     "loading": "Yükleniyor...",
     "error": "Hata",
@@ -28,7 +28,9 @@
     "connecting": "Bağlanıyor...",
     "connect": "Bağlan",
     "backToHome": "Ana Sayfaya Dön",
-    "allRightsReserved": "Tüm hakları saklıdır"
+    "allRightsReserved": "Tüm hakları saklıdır",
+    "comingSoon": "Çok yakında",
+    "ok": "Tamam"
   },
   "nav": {
     "xtremeCode": "Xtreme Code",
@@ -37,7 +39,12 @@
     "accounts": "Hesaplar",
     "support": "Destek",
     "terms": "Hizmet Şartları",
-    "privacy": "Gizlilik Politikası"
+    "privacy": "Gizlilik Politikası",
+    "cookiePolicy": "Çerez Politikası",
+    "favorites": "Favoriler",
+    "movies": "Filmler",
+    "series": "Diziler",
+    "watchlist": "İzlemediklerim"
   },
   "home": {
     "title": "StreamHub'a Hoş Geldiniz",
@@ -72,6 +79,25 @@
     "copyright": "© 2023 Xtreme Code IPTV Player. All rights reserved."
   },
   "auth": {
+    "verifyEmail": "Email Doğrulama",
+    "emailVerified": "Email Adresiniz Doğrulandı!",
+    "emailVerifiedMessage": "Email adresiniz başarıyla doğrulandı. Artık giriş yapabilirsiniz.",
+    "emailVerificationFailed": "Email Doğrulama Başarısız",
+    "resendVerification": "Doğrulama Email'ini Tekrar Gönder",
+    "resendSuccess": "Doğrulama email'i başarıyla gönderildi. Lütfen email kutunuzu kontrol edin.",
+    "sendVerification": "Doğrulama Email'i Gönder",
+    "verifyEmailBanner": "Email adresinizi doğrulamanız gerekiyor. Lütfen email kutunuzu kontrol edin.",
+    "remainingEmails": "Kalan",
+    "resetPassword": "Şifre Sıfırlama",
+    "resetPasswordMessage": "Yeni şifrenizi belirleyin",
+    "newPassword": "Yeni Şifre",
+    "newPasswordPlaceholder": "En az 8 karakter",
+    "confirmPassword": "Yeni Şifre (Tekrar)",
+    "confirmPasswordPlaceholder": "Şifreyi tekrar girin",
+    "passwordResetSuccess": "Şifreniz Başarıyla Sıfırlandı!",
+    "passwordResetSuccessMessage": "Şifreniz başarıyla sıfırlandı. Yönlendiriliyorsunuz...",
+    "invalidToken": "Geçersiz Token",
+    "invalidTokenMessage": "Şifre sıfırlama token'ı bulunamadı veya geçersiz.",
     "login": "Giriş Yap",
     "register": "Kayıt Ol",
     "forgotPassword": "Şifremi Unuttum",
@@ -118,7 +144,57 @@
     "faq2": "M3U playlist nasıl yüklenir?",
     "faq2Answer": "Ana sayfadan \"M3U Playlist\" kartına tıklayın, M3U dosyanızın URL'sini girin ve \"Yükle\" butonuna basın.",
     "faq3": "Video oynatılmıyor, ne yapmalıyım?",
-    "faq3Answer": "Önce internet bağlantınızı kontrol edin. Hala sorun varsa, hesap bilgilerinizi kontrol edin ve sayfayı yenileyin. Sorun devam ederse destek ekibimizle iletişime geçin."
+    "faq3Answer": "Önce internet bağlantınızı kontrol edin. Hala sorun varsa, hesap bilgilerinizi kontrol edin ve sayfayı yenileyin. Sorun devam ederse destek ekibimizle iletişime geçin.",
+    "ticket": "Destek Talebi",
+    "ticketId": "Destek Talebi ID",
+    "detail": "Destek Talebi Detayı",
+    "adminNotes": "Yönetici Notları",
+    "admin": "Yönetici",
+    "messageHistory": "Mesaj Geçmişi",
+    "createdAt": "Oluşturulma Tarihi",
+    "updatedAt": "Güncellenme Tarihi",
+    "yourReplies": "Sizin Cevaplarınız",
+    "replyToTicket": "Destek Talebine Cevap Verin",
+    "replyPlaceholder": "Cevabınızı buraya yazın...",
+    "sendReply": "Cevabı Gönder",
+    "replySent": "Cevabınız başarıyla gönderildi!",
+    "ticketClosed": "Bu destek talebi kapatılmış. Yeni cevap eklenemez.",
+    "category": "Kategori",
+    "categoryGeneral": "Genel",
+    "categoryBugReport": "Bug Report",
+    "categoryXtremeCode": "Xtreme Code Desteği",
+    "categoryM3U": "M3U Playlist Desteği",
+    "categoryAccount": "Hesap Desteği",
+    "categoryTechnical": "Teknik Destek",
+    "categoryFeatureRequest": "Özellik İsteği",
+    "categoryOther": "Diğer",
+    "subjectPlaceholder": "Konu başlığını girin",
+    "myTickets": "Destek Taleplerim",
+    "myTicketsDesc": "Destek taleplerinizi görüntüleyin ve yönetin",
+    "newTicket": "Yeni Talep",
+    "allTickets": "Tüm Talepler",
+    "status": "Durum",
+    "allCategories": "Tümü",
+    "searchTickets": "Talepleri ara...",
+    "noTickets": "Talep bulunamadı",
+    "from": "Gönderen",
+    "date": "Tarih",
+    "updated": "Güncellendi",
+    "yesterday": "Dün",
+    "daysAgo": "gün önce",
+    "loginRequired": "Destek taleplerinizi görmek için giriş yapın",
+    "messageRequired": "Mesaj gereklidir",
+    "replyError": "Cevap gönderilirken bir hata oluştu",
+    "sending": "Gönderiliyor...",
+    "status": {
+      "pending": "Beklemede",
+      "in_progress": "İşleniyor",
+      "resolved": "Çözüldü",
+      "closed": "Kapatıldı"
+    }
+  },
+  "bugReport": {
+    "report": "Bug Report"
   },
   "userPanel": {
     "subtitle": "IPTV hesaplarınızı yönetin, atanan paketleri görüntüleyin ve yayınlarınıza erişin.",
@@ -176,7 +252,9 @@
     "connectionError": "Bağlantı hatası oluştu. Lütfen tekrar deneyin.",
     "playlistLoadError": "Playlist yüklenirken hata oluştu. Lütfen tekrar deneyin.",
     "channels": "kanal",
-    "optional": "İsteğe Bağlı"
+    "optional": "İsteğe Bağlı",
+    "allChannels": "Tüm Kanallar",
+    "channelsLabel": "Kanallar"
   },
   "terms": {
     "title": "Hizmet Şartları",
@@ -312,9 +390,90 @@
     "section13": "13. İletişim",
     "section13Text": "Bu politika, uluslararası veri koruma standartlarına uygun olarak hazırlanmıştır. Kullanıcıların bulunduğu ülkenin yerel veri koruma yasaları (GDPR, CCPA, vb.) geçerli olabilir ve bu yasalara uyum sağlanmaktadır."
   },
+  "cookie": {
+    "title": "Çerez Politikası",
+    "lastUpdated": "Son güncelleme",
+    "introduction": {
+      "title": "Giriş",
+      "text1": "Bu Çerez Politikası, StreamHub platformunun çerezleri ve benzeri teknolojileri nasıl kullandığını açıklar. Platformu kullanarak, bu politikada açıklanan çerezlerin kullanımını kabul etmiş sayılırsınız.",
+      "text2": "Çerezler, web sitelerinin düzgün çalışması, kullanıcı deneyimini iyileştirme ve site analitiği için kullanılan küçük metin dosyalarıdır."
+    },
+    "whatAreCookies": {
+      "title": "Çerezler Nedir?",
+      "text1": "Çerezler, bir web sitesini ziyaret ettiğinizde cihazınıza (bilgisayar, tablet veya mobil cihaz) kaydedilen küçük metin dosyalarıdır. Bu dosyalar, web sitesinin sizin tercihlerinizi hatırlamasına ve size daha iyi bir deneyim sunmasına yardımcı olur.",
+      "text2": "Çerezler, web sitesinin işlevselliğini artırır ve kullanıcı deneyimini kişiselleştirir. Örneğin, dil tercihinizi hatırlayarak her ziyaretinizde aynı dili kullanmanızı sağlar."
+    },
+    "types": {
+      "title": "Çerez Türleri",
+      "essential": {
+        "title": "Zorunlu Çerezler",
+        "text": "Bu çerezler, web sitesinin temel işlevlerini yerine getirmesi için gereklidir. Örneğin, oturum yönetimi, güvenlik ve site navigasyonu için kullanılır. Bu çerezler olmadan web sitesi düzgün çalışamaz."
+      },
+      "functional": {
+        "title": "İşlevsel Çerezler",
+        "text": "Bu çerezler, web sitesinin gelişmiş işlevsellik ve kişiselleştirme özelliklerini sağlamasına yardımcı olur. Örneğin, dil tercihinizi hatırlama, kullanıcı ayarlarınızı saklama gibi özellikler için kullanılır."
+      },
+      "analytics": {
+        "title": "Analitik Çerezler",
+        "text": "Bu çerezler, web sitesinin nasıl kullanıldığını anlamamıza yardımcı olur. Ziyaretçi sayısı, sayfa görüntülemeleri, kullanıcı davranışları gibi bilgileri toplar. Bu bilgiler, siteyi iyileştirmek için kullanılır."
+      },
+      "marketing": {
+        "title": "Pazarlama Çerezleri",
+        "text": "Bu çerezler, size daha uygun reklamlar ve içerikler göstermek için kullanılır. Şu anda platformumuzda pazarlama çerezleri kullanılmamaktadır."
+      }
+    },
+    "weUse": {
+      "title": "Kullandığımız Çerezler",
+      "table": {
+        "name": "Çerez Adı",
+        "purpose": "Amaç",
+        "duration": "Süre",
+        "authToken": "Kullanıcı oturum kimlik doğrulaması",
+        "user": "Kullanıcı bilgilerini saklama",
+        "language": "Dil tercihini saklama",
+        "consent": "Çerez onay durumunu saklama",
+        "session": "Oturum süresi",
+        "persistent": "Kalıcı"
+      }
+    },
+    "managing": {
+      "title": "Çerezleri Yönetme",
+      "text1": "Çerez tercihlerinizi yönetmek için tarayıcı ayarlarınızı kullanabilirsiniz. Çoğu tarayıcı, çerezleri otomatik olarak kabul eder, ancak tarayıcı ayarlarınızdan çerezleri reddedebilir veya çerez kullanımı hakkında uyarı alabilirsiniz.",
+      "text2": "Çerezleri devre dışı bırakmanız durumunda, web sitesinin bazı özellikleri düzgün çalışmayabilir. Çerezleri yönetmek için:",
+      "option1": "Tarayıcı ayarlarınızdan çerez tercihlerinizi değiştirebilirsiniz",
+      "option2": "Belirli çerezleri silmek için tarayıcı ayarlarınızı kullanabilirsiniz",
+      "option3": "Çerezleri tamamen devre dışı bırakabilirsiniz (ancak bu, site işlevselliğini etkileyebilir)"
+    },
+    "thirdParty": {
+      "title": "Üçüncü Taraf Çerezleri",
+      "text": "Platformumuz şu anda üçüncü taraf çerezleri kullanmamaktadır. Gelecekte üçüncü taraf hizmetler eklenirse, bu politika güncellenecektir."
+    },
+    "updates": {
+      "title": "Politika Güncellemeleri",
+      "text": "Bu Çerez Politikasını zaman zaman güncelleyebiliriz. Önemli değişiklikler durumunda, size bildirimde bulunacağız. Güncellenmiş politikayı kabul etmek için siteyi kullanmaya devam edebilirsiniz."
+    },
+    "contact": {
+      "title": "İletişim",
+      "text": "Çerez politikamız hakkında sorularınız varsa, lütfen destek sayfamızdan bizimle iletişime geçin."
+    }
+  },
+  "cookieConsent": {
+    "title": "Çerez Kullanımı",
+    "message": "Bu web sitesi, size en iyi deneyimi sunmak için çerezler kullanmaktadır. Siteyi kullanmaya devam ederek çerez kullanımımızı kabul etmiş olursunuz.",
+    "accept": "Kabul Et",
+    "decline": "Reddet",
+    "learnMore": "Daha fazla bilgi"
+  },
   "seo": {
     "homeTitle": "StreamHub - IPTV Yönetim Platformu | Xtreme Code ve M3U Playlist",
     "homeDescription": "StreamHub ile Xtreme Code ve M3U playlist hesaplarınızı yönetin, canlı TV kanallarını izleyin. Güvenli ve kullanıcı dostu IPTV yönetim platformu.",
     "keywords": "IPTV, Xtreme Code, M3U playlist, canlı TV, streaming, video player, IPTV yönetimi"
+  },
+  "beta": {
+    "title": "Beta Versiyon",
+    "message": "Şu anda Beta versiyondur, hatalar olabilir.",
+    "bugReport": "Herhangi bir hata veya eklemek istediğiniz yer varsa sağ köşede Bug report var, oraya tıklayıp bize bildirin.",
+    "reportBug": "Bug Report",
+    "close": "Kapat"
   }
 }

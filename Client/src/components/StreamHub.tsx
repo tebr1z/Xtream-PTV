@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Footer from './Footer';
 import SEO from './SEO';
 import LanguageSwitcher from './LanguageSwitcher';
 import StructuredData from './StructuredData';
+import CookieConsent from './CookieConsent';
 
 interface CardProps {
   icon: string;
@@ -49,7 +50,10 @@ const Card = ({ icon, title, description, onClick }: CardProps) => {
 const StreamHub = () => {
   const navigate = useNavigate();
   const { t, ready } = useTranslation();
+  const params = useParams<{ lang?: string }>();
+  const lang = params.lang || 'tr';
   const [isDarkMode] = useState(true); // You can add toggle functionality later
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   // i18n hazır olana kadar yükleniyor göster
   if (!ready) {
@@ -70,8 +74,8 @@ const StreamHub = () => {
         navigate('/m3u-list');
         break;
       case 'Live TV':
-        // navigate('/live-tv');
-        alert(t('common.loading')); // TODO: Add proper translation
+        // Çok yakında modal'ını göster
+        setShowComingSoon(true);
         break;
       case 'Login':
         // Eğer login olmuşsa user sayfasına yönlendir
@@ -115,14 +119,17 @@ const StreamHub = () => {
       <StructuredData />
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-white/10 px-6 py-4 lg:px-12 w-full">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(`/${lang}`)}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+        >
           <div className="size-8 text-primary">
             <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
               <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
             </svg>
           </div>
           <h2 className="text-xl font-bold tracking-tight">{t('common.appName')}</h2>
-        </div>
+        </button>
         <div className="flex items-center gap-4">
           <LanguageSwitcher />
           <button
@@ -202,6 +209,27 @@ const StreamHub = () => {
       </main>
 
       <Footer />
+      <CookieConsent />
+
+      {/* Coming Soon Modal */}
+      {showComingSoon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowComingSoon(false)}>
+          <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="flex items-center justify-center size-16 rounded-full bg-primary/20 mb-4 mx-auto">
+                <span className="material-symbols-outlined text-4xl text-primary">schedule</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">{t('common.comingSoon')}</h3>
+              <button
+                onClick={() => setShowComingSoon(false)}
+                className="w-full px-6 py-3 bg-primary hover:bg-[#14b89d] text-[#11211e] font-bold rounded-lg transition-colors"
+              >
+                {t('common.ok')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

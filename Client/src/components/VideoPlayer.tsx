@@ -658,7 +658,7 @@ const VideoPlayer = () => {
   };
 
   return (
-    <div className="bg-[#f6f8f8] dark:bg-[#11211e] font-display text-slate-900 dark:text-white h-screen flex flex-col overflow-hidden w-full">
+    <div className="bg-[#f6f8f8] dark:bg-[#11211e] font-display text-slate-900 dark:text-white min-h-screen flex flex-col w-full">
       {/* Header Section */}
       <header className="shrink-0 border-b border-[#293836] bg-[#11211e] z-20">
         <div className="px-6 py-4 flex items-center justify-between">
@@ -742,7 +742,7 @@ const VideoPlayer = () => {
       </header>
 
       {/* Main Content Grid */}
-      <main className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 p-0 lg:p-6 lg:pt-2 min-h-0">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 p-0 lg:p-6 lg:pt-2 overflow-hidden">
         {/* Video Player Section (Left) */}
         <div className="lg:col-span-9 flex flex-col h-full min-h-0">
           {/* Player Container - Sabit boyut, scroll'dan etkilenmez */}
@@ -901,7 +901,7 @@ const VideoPlayer = () => {
         </div>
 
         {/* Sidebar Channel List (Right) */}
-        <div className="lg:col-span-3 flex flex-col h-[500px] lg:h-full bg-[#1a2c29] lg:rounded-2xl border-t lg:border border-[#293836] overflow-hidden min-h-0">
+        <div className="lg:col-span-3 flex flex-col h-[500px] lg:h-[calc(100vh-200px)] bg-[#1a2c29] lg:rounded-2xl border-t lg:border border-[#293836] overflow-hidden min-h-0">
           {/* Sidebar Header / Search */}
           <div className="shrink-0 p-4 border-b border-[#293836] bg-[#1a2c29]/95 backdrop-blur z-10">
             <div className="relative">
@@ -999,7 +999,9 @@ const VideoPlayer = () => {
           </div>
         </div>
       </main>
-      <Footer />
+      <div className="mt-auto">
+        <Footer />
+      </div>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getLiveCategories, getLiveStreams } from '../services/xtremeCodeService';
 import { getM3UCategories, getM3UChannelsByCategory } from '../services/m3uService';
 import Footer from './Footer';
@@ -40,7 +41,11 @@ type Channel = {
 const ChannelList = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams<{ lang?: string }>();
+  const { t } = useTranslation();
+  const lang = params.lang || 'tr';
   const [sourceType, setSourceType] = useState<'xtreme' | 'm3u'>('xtreme');
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const [credentials, setCredentials] = useState<{ serverUrl: string; username: string; password: string } | null>(null);
   const [m3uChannels, setM3UChannels] = useState<any[]>([]);
   const [categories, setCategories] = useState<XtremeCodeCategory[]>([]);
@@ -50,24 +55,27 @@ const ChannelList = () => {
   const [sortBy, setSortBy] = useState('Popülerlik');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  // Cache reset kontrolü
+  const [lastCacheReset, setLastCacheReset] = useState<number | null>(null);
+  const [isResettingCache, setIsResettingCache] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   // localStorage'dan credentials'ları al (Xtreme Code veya M3U)
   useEffect(() => {
+    if (isInitialized) return; // Sadece bir kez çalışsın
+    
+    setIsLoading(true);
+    setError(null);
+    
     // location.state'den sourceType'ı kontrol et (öncelikli)
     const stateSourceType = (location.state as any)?.sourceType;
     
-    // Eğer state'de sourceType varsa, onu kullan
-    if (stateSourceType === 'xtreme' || stateSourceType === 'm3u') {
-      setSourceType(stateSourceType);
-    }
-    
     // ÖNCE: activeXtremeCodeAccount kontrol et (kullanıcının kendi seçtiği hesap - en yüksek öncelik)
-    // Bu, kullanıcı xtreme-code-list'ten bir hesap seçtiğinde kullanılır
     const activeXtremeAccount = localStorage.getItem('activeXtremeCodeAccount');
     if (activeXtremeAccount) {
       try {
         const account = JSON.parse(activeXtremeAccount);
-        // Eğer sourceType belirtilmişse ve 'xtreme' ise, veya sourceType belirtilmemişse kullan
         if (!stateSourceType || stateSourceType === 'xtreme') {
           setCredentials({
             serverUrl: account.serverUrl,
@@ -75,6 +83,7 @@ const ChannelList = () => {
             password: account.password
           });
           setSourceType('xtreme');
+          setIsInitialized(true);
           return; // M3U kontrolünü atla
         }
       } catch (err) {
@@ -84,7 +93,6 @@ const ChannelList = () => {
     
     // Eğer Xtreme Code için geldiyse ve activeXtremeAccount yoksa, eski yöntemi kontrol et
     if (stateSourceType === 'xtreme') {
-      // Eski yöntem: xtremeCodeCredentials
       const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
       if (storedCredentials) {
         try {
@@ -95,7 +103,8 @@ const ChannelList = () => {
             password: creds.password
           });
           setSourceType('xtreme');
-          return; // M3U kontrolünü atla
+          setIsInitialized(true);
+          return;
         } catch (err) {
           console.error('Credentials parse error:', err);
         }
@@ -120,35 +129,45 @@ const ChannelList = () => {
             
             // M3U kanallarını formatla
             const formattedChannels: Channel[] = channels.map((ch: any) => ({
-              id: ch.id || ch.stream_id,
-              name: ch.name,
-              logo: ch.logo || ch.stream_icon || '',
+              id: ch.id || ch.stream_id || `m3u_${Math.random()}`,
+              name: ch.name || 'İsimsiz Kanal',
+              logo: ch.logo || ch.stream_icon || ch.tvg?.logo || '',
               status: 'live' as const,
               currentProgram: 'Canlı Yayın',
-              category: ch.category_name || ch.group || 'Genel',
+              category: ch.category_name || ch.group || ch.tvg?.group || 'Genel',
               streamUrl: ch.streamUrl || ch.url,
               streamId: ch.id || ch.stream_id,
             }));
-            setChannels(formattedChannels);
+            
+            // Sıralama
+            let sortedChannels = [...formattedChannels];
+            if (sortBy === 'A-Z') {
+              sortedChannels.sort((a, b) => a.name.localeCompare(b.name));
+            }
+            
+            setChannels(sortedChannels);
             setIsLoading(false);
+            setIsInitialized(true);
             return;
           } else {
-            // M3U kanalları boş, M3U listesine yönlendir
             setError('M3U playlist boş. Lütfen tekrar yükleyin.');
-            navigate('/m3u-list');
+            setIsLoading(false);
+            setIsInitialized(true);
+            setTimeout(() => navigate('/m3u-list'), 2000);
             return;
           }
         } catch (err) {
           console.error('M3U parse error:', err);
           setError('M3U playlist yüklenemedi. Lütfen tekrar deneyin.');
-          navigate('/m3u-list');
+          setIsLoading(false);
+          setIsInitialized(true);
+          setTimeout(() => navigate('/m3u-list'), 2000);
           return;
         }
       }
     }
     
     // Xtreme Code kontrol et (sadece sourceType 'm3u' değilse ve activeXtremeAccount yoksa)
-    // activeXtremeAccount zaten yukarıda kontrol edildi, buraya gelmemeli
     if (stateSourceType !== 'm3u' && !activeXtremeAccount) {
       const storedCredentials = localStorage.getItem('xtremeCodeCredentials');
       if (storedCredentials) {
@@ -160,6 +179,7 @@ const ChannelList = () => {
             password: creds.password,
           });
           setSourceType('xtreme');
+          setIsInitialized(true);
           return;
         } catch (err) {
           console.error('Credentials parse error:', err);
@@ -168,76 +188,90 @@ const ChannelList = () => {
     }
     
     // Ne M3U ne de Xtreme Code bulunamadı
-    if (!credentials) {
-      // Ne M3U ne de Xtreme Code var, önce M3U kontrol et, sonra Xtreme Code
-      const m3uAccounts = localStorage.getItem('m3uAccounts');
-      if (m3uAccounts) {
-        setError('Lütfen bir M3U playlist seçin.');
-        navigate('/m3u-list');
-      } else {
-        setError('Giriş yapılmamış. Lütfen önce giriş yapın.');
-        navigate('/xtreme-code-list');
+    setError('Giriş yapılmamış. Lütfen önce bir hesap seçin.');
+    setIsLoading(false);
+    setIsInitialized(true);
+    
+    const m3uAccounts = localStorage.getItem('m3uAccounts');
+    if (m3uAccounts) {
+      setTimeout(() => navigate('/m3u-list'), 2000);
+    } else {
+      setTimeout(() => navigate('/xtreme-code-list'), 2000);
+    }
+  }, [navigate, location, isInitialized]);
+
+  // Kategorileri yükle (cache ile) - Sadece Xtreme Code için
+  useEffect(() => {
+    if (!credentials || sourceType !== 'xtreme') return;
+
+    // Daha önce cache reset zamanı varsa yükle
+    const resetKey = `xtreme_cache_reset_${credentials.serverUrl}_${credentials.username}`;
+    const storedReset = localStorage.getItem(resetKey);
+    if (storedReset) {
+      const ts = parseInt(storedReset);
+      if (!Number.isNaN(ts)) {
+        setLastCacheReset(ts);
       }
     }
-  }, [navigate, location]);
-
-  // Kategorileri yükle (cache ile)
-  useEffect(() => {
-    if (!credentials) return;
 
     const loadCategories = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         // Cache'den kontrol et
         const cacheKey = `xtreme_categories_${credentials.serverUrl}_${credentials.username}`;
         const cachedData = localStorage.getItem(cacheKey);
         const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
         
         // Cache 5 dakika geçerli
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 dakika
+        const CACHE_DURATION = 5 * 60 * 1000;
         const now = Date.now();
         
         if (cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp)) < CACHE_DURATION) {
           try {
             const categoriesData = JSON.parse(cachedData);
-            if (Array.isArray(categoriesData)) {
+            if (Array.isArray(categoriesData) && categoriesData.length > 0) {
               setCategories(categoriesData);
-              return; // Cache'den yüklendi, API çağrısı yapma
+              return; // Cache'den yüklendi
             }
           } catch (e) {
-            // Cache bozuksa devam et
+            console.error('Cache parse error:', e);
           }
         }
         
-        setIsLoading(true);
         const categoriesData = await getLiveCategories(
           credentials.serverUrl,
           credentials.username,
           credentials.password
         );
         
-        if (Array.isArray(categoriesData)) {
+        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
           setCategories(categoriesData);
           // Cache'e kaydet
           localStorage.setItem(cacheKey, JSON.stringify(categoriesData));
           localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
+        } else {
+          setError('Kategoriler bulunamadı.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Categories load error:', err);
-        setError('Kategoriler yüklenemedi. Lütfen tekrar deneyin.');
-      } finally {
-        setIsLoading(false);
+        setError(err.message || 'Kategoriler yüklenemedi. Lütfen tekrar deneyin.');
       }
     };
 
     loadCategories();
-  }, [credentials]);
+  }, [credentials, sourceType, refreshToken]);
 
-  // Kanalları yükle (cache ile)
+  // Kanalları yükle (cache ile) - Sadece Xtreme Code için
   useEffect(() => {
-    if (!credentials) return;
+    if (!credentials || sourceType !== 'xtreme') return;
 
     const loadStreams = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         // Cache'den kontrol et
         const categoryId = selectedCategory === 'all' ? undefined : selectedCategory;
         const cacheKey = `xtreme_streams_${credentials.serverUrl}_${credentials.username}_${categoryId || 'all'}`;
@@ -245,17 +279,17 @@ const ChannelList = () => {
         const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
         
         // Cache 5 dakika geçerli
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 dakika
+        const CACHE_DURATION = 5 * 60 * 1000;
         const now = Date.now();
         
         if (cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp)) < CACHE_DURATION) {
           try {
             const streamsData = JSON.parse(cachedData);
-            if (Array.isArray(streamsData)) {
+            if (Array.isArray(streamsData) && streamsData.length > 0) {
               // Streams'i Channel formatına dönüştür
               const channelsData: Channel[] = streamsData.map((stream: XtremeCodeStream) => ({
-                id: stream.stream_id,
-                name: stream.name,
+                id: stream.stream_id || `xtreme_${stream.num}`,
+                name: stream.name || 'İsimsiz Kanal',
                 logo: stream.stream_icon || '',
                 status: 'live' as const,
                 currentProgram: 'Canlı Yayın',
@@ -279,14 +313,14 @@ const ChannelList = () => {
               }
 
               setChannels(sortedChannels);
-              return; // Cache'den yüklendi, API çağrısı yapma
+              setIsLoading(false);
+              return; // Cache'den yüklendi
             }
           } catch (e) {
-            // Cache bozuksa devam et
+            console.error('Cache parse error:', e);
           }
         }
         
-        setIsLoading(true);
         const streamsData = await getLiveStreams(
           credentials.serverUrl,
           credentials.username,
@@ -294,15 +328,15 @@ const ChannelList = () => {
           categoryId
         );
 
-        if (Array.isArray(streamsData)) {
+        if (Array.isArray(streamsData) && streamsData.length > 0) {
           // Cache'e kaydet
           localStorage.setItem(cacheKey, JSON.stringify(streamsData));
           localStorage.setItem(`${cacheKey}_timestamp`, now.toString());
           
           // Streams'i Channel formatına dönüştür
           const channelsData: Channel[] = streamsData.map((stream: XtremeCodeStream) => ({
-            id: stream.stream_id,
-            name: stream.name,
+            id: stream.stream_id || `xtreme_${stream.num}`,
+            name: stream.name || 'İsimsiz Kanal',
             logo: stream.stream_icon || '',
             status: 'live' as const,
             currentProgram: 'Canlı Yayın',
@@ -326,30 +360,34 @@ const ChannelList = () => {
           }
 
           setChannels(sortedChannels);
+        } else {
+          setError('Kanallar bulunamadı.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Streams load error:', err);
-        setError('Kanallar yüklenemedi. Lütfen tekrar deneyin.');
+        setError(err.message || 'Kanallar yüklenemedi. Lütfen tekrar deneyin.');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadStreams();
-  }, [credentials, selectedCategory, sortBy]);
+  }, [credentials, selectedCategory, sortBy, sourceType, refreshToken]);
 
-  // M3U için kategori filtreleme
+  // M3U için kategori filtreleme ve sıralama
   useEffect(() => {
-    if (sourceType === 'm3u' && m3uChannels.length > 0) {
+    if (sourceType !== 'm3u' || m3uChannels.length === 0) return;
+
+    try {
       const filtered = getM3UChannelsByCategory(m3uChannels, selectedCategory === 'all' ? undefined : selectedCategory);
       
       const formattedChannels: Channel[] = filtered.map((ch: any) => ({
-        id: ch.id || ch.stream_id,
-        name: ch.name,
-        logo: ch.logo || ch.stream_icon || '',
+        id: ch.id || ch.stream_id || `m3u_${Math.random()}`,
+        name: ch.name || 'İsimsiz Kanal',
+        logo: ch.logo || ch.stream_icon || ch.tvg?.logo || '',
         status: 'live' as const,
         currentProgram: 'Canlı Yayın',
-        category: ch.category_name || ch.group || 'Genel',
+        category: ch.category_name || ch.group || ch.tvg?.group || 'Genel',
         streamUrl: ch.streamUrl || ch.url,
         streamId: ch.id || ch.stream_id,
       }));
@@ -361,22 +399,33 @@ const ChannelList = () => {
       }
       
       setChannels(sortedChannels);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('M3U filter error:', err);
+      setError('Kanallar filtrelenirken bir hata oluştu.');
+      setIsLoading(false);
     }
   }, [selectedCategory, m3uChannels, sourceType, sortBy]);
 
   const filteredChannels = channels.filter(channel => {
+    if (!channel.name) return false;
     const matchesSearch = channel.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
   const handleChannelClick = (channel: Channel) => {
-    navigate('/player', { state: { channel } });
+    if (!channel.streamUrl && !channel.streamId) {
+      alert('Bu kanal için stream URL bulunamadı.');
+      return;
+    }
+    navigate('/player', { state: { channel, sourceType, credentials } });
   };
 
   const handleLogout = () => {
     if (sourceType === 'xtreme') {
       localStorage.removeItem('xtremeCodeCredentials');
       localStorage.removeItem('xtremeCodeConnected');
+      localStorage.removeItem('activeXtremeCodeAccount');
       navigate('/xtreme-code-list');
     } else {
       localStorage.removeItem('m3uCredentials');
@@ -388,19 +437,69 @@ const ChannelList = () => {
 
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
-    setIsLoading(true);
+    if (sourceType === 'xtreme') {
+      setIsLoading(true);
+    }
   };
 
-  if (error && !credentials) {
+  // Cache reset butonu
+  const handleCacheReset = () => {
+    if (!credentials) return;
+
+    const THREE_HOURS = 3 * 60 * 60 * 1000;
+    const now = Date.now();
+    const resetKey = `xtreme_cache_reset_${credentials.serverUrl}_${credentials.username}`;
+    const last = lastCacheReset ?? parseInt(localStorage.getItem(resetKey) || '0');
+
+    if (last && !Number.isNaN(last) && now - last < THREE_HOURS) {
+      const remainingMs = THREE_HOURS - (now - last);
+      const remainingMinutes = Math.ceil(remainingMs / 60000);
+      alert(`Cache en fazla 3 saatte bir yenilenebilir. Kalan süre: ${remainingMinutes} dakika`);
+      return;
+    }
+
+    setIsResettingCache(true);
+
+    try {
+      // Kategori cache'ini temizle
+      const catKey = `xtreme_categories_${credentials.serverUrl}_${credentials.username}`;
+      localStorage.removeItem(catKey);
+      localStorage.removeItem(`${catKey}_timestamp`);
+
+      // Kanal cache'lerini temizle
+      const streamsPrefix = `xtreme_streams_${credentials.serverUrl}_${credentials.username}_`;
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith(streamsPrefix)) {
+          localStorage.removeItem(key);
+          localStorage.removeItem(`${key}_timestamp`);
+        }
+      });
+
+      // Son reset zamanını kaydet
+      localStorage.setItem(resetKey, now.toString());
+      setLastCacheReset(now);
+
+      // Yeniden yükleme tetikle
+      setRefreshToken((prev) => prev + 1);
+    } finally {
+      setIsResettingCache(false);
+    }
+  };
+
+  if (error && !credentials && !m3uChannels.length) {
     return (
       <div className="font-display bg-[#f6f8f8] dark:bg-[#11211e] text-[#111817] dark:text-white h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
+        <div className="text-center max-w-md px-4">
+          <div className="size-20 rounded-full bg-red-500/20 flex items-center justify-center mb-4 mx-auto">
+            <span className="material-symbols-outlined text-4xl text-red-400">error</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Bağlantı Hatası</h3>
+          <p className="text-red-400 mb-6">{error}</p>
           <button
-            onClick={() => navigate('/xtreme-code')}
-            className="bg-primary text-background-dark px-6 py-2 rounded-lg font-bold"
+            onClick={() => navigate('/')}
+            className="bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] px-6 py-2 rounded-lg font-bold transition-colors"
           >
-            Giriş Sayfasına Dön
+            Ana Sayfaya Dön
           </button>
         </div>
       </div>
@@ -408,7 +507,7 @@ const ChannelList = () => {
   }
 
   return (
-    <div className="font-display bg-[#f6f8f8] dark:bg-[#11211e] text-[#111817] dark:text-white h-screen overflow-hidden flex flex-col md:flex-row w-full">
+    <div className="font-display bg-[#f6f8f8] dark:bg-[#11211e] text-[#111817] dark:text-white h-screen overflow-hidden flex flex-col md:flex-row w-full relative">
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#1a2624] border-b dark:border-[#293836]">
         <div className="flex items-center gap-2">
@@ -430,48 +529,62 @@ const ChannelList = () => {
         <div className="p-6 border-b border-[#293836]">
           <div className="flex items-center gap-3 mb-1">
             <div className="bg-gradient-to-br from-[#19e6c4] to-[#14b89d] rounded-full h-12 w-12 border-2 border-[#19e6c4]/20 flex items-center justify-center text-white font-bold">
-              {credentials?.username?.charAt(0).toUpperCase() || 'U'}
+              {(credentials?.username || 'Kullanıcı').charAt(0).toUpperCase()}
             </div>
             <div className="flex flex-col overflow-hidden">
               <h1 className="text-white text-base font-bold truncate">{credentials?.username || 'Kullanıcı'}</h1>
-              <p className="text-[#19e6c4] text-xs font-medium">Premium Üyelik</p>
             </div>
           </div>
         </div>
 
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          <a className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer">
+          <a 
+            onClick={() => setShowComingSoon(true)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
+          >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">favorite</span>
-            <span className="text-sm font-medium">Favoriler</span>
+            <span className="text-sm font-medium">{t('nav.favorites')}</span>
           </a>
           <a className="flex items-center gap-3 px-3 py-3 rounded-lg bg-[#19e6c4]/10 text-[#19e6c4] transition-colors cursor-pointer">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>tv</span>
-            <span className="text-sm font-medium">Canlı TV</span>
+            <span className="text-sm font-medium">{t('nav.liveTV')}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer">
+          <a 
+            onClick={() => setShowComingSoon(true)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
+          >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">movie</span>
-            <span className="text-sm font-medium">Filmler</span>
+            <span className="text-sm font-medium">{t('nav.movies')}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer">
+          <a 
+            onClick={() => setShowComingSoon(true)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
+          >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">smart_display</span>
-            <span className="text-sm font-medium">Diziler</span>
+            <span className="text-sm font-medium">{t('nav.series')}</span>
           </a>
-          <a className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer">
+          <a 
+            onClick={() => setShowComingSoon(true)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
+          >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">history</span>
-            <span className="text-sm font-medium">İzlemediklerim</span>
+            <span className="text-sm font-medium">{t('nav.watchlist')}</span>
           </a>
           <div className="my-4 border-t border-[#293836] mx-3"></div>
-          <a className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer">
+          <a 
+            onClick={() => setShowComingSoon(true)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
+          >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">settings</span>
-            <span className="text-sm font-medium">Ayarlar</span>
+            <span className="text-sm font-medium">{t('common.settings')}</span>
           </a>
           <a
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-3 rounded-lg text-[#9db8b4] hover:bg-[#293836] hover:text-white transition-colors group cursor-pointer"
           >
             <span className="material-symbols-outlined group-hover:text-[#19e6c4] transition-colors">logout</span>
-            <span className="text-sm font-medium">Çıkış</span>
+            <span className="text-sm font-medium">{t('common.logout')}</span>
           </a>
         </nav>
 
@@ -489,29 +602,46 @@ const ChannelList = () => {
         {/* Top Navigation Bar */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-[#293836] bg-[#1a2624]/50 backdrop-blur-md sticky top-0 z-20">
           {/* Left: Breadcrumbs */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-[#9db8b4]">Canlı TV</span>
-            <span className="material-symbols-outlined text-[#9db8b4] text-[16px]">chevron_right</span>
-            <span className="text-white font-medium">
+          <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+            <button
+              onClick={() => navigate(`/${lang}`)}
+              className="flex items-center gap-1.5 text-[#9db8b4] hover:text-[#19e6c4] transition-colors whitespace-nowrap"
+            >
+              <span className="material-symbols-outlined text-[16px]">home</span>
+              <span>{t('common.home')}</span>
+            </button>
+            <span className="material-symbols-outlined text-[#9db8b4] text-[16px] flex-shrink-0">chevron_right</span>
+            <span className="text-[#9db8b4] whitespace-nowrap">{t('nav.liveTV')}</span>
+            <span className="material-symbols-outlined text-[#9db8b4] text-[16px] flex-shrink-0">chevron_right</span>
+            <span className="text-white font-medium truncate">
               {selectedCategory === 'all' 
-                ? 'Tüm Kanallar' 
-                : categories.find(c => c.category_id === selectedCategory)?.category_name || 'Kanallar'}
+                ? t('channels.allChannels')
+                : categories.find(c => c.category_id === selectedCategory)?.category_name || t('channels.channelsLabel')}
             </span>
           </div>
 
           {/* Right: Search & Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* Search Bar */}
             <div className="hidden sm:flex items-center bg-[#293836] rounded-lg h-10 w-64 px-3 focus-within:ring-1 focus-within:ring-[#19e6c4] transition-all">
-              <span className="material-symbols-outlined text-[#9db8b4]">search</span>
+              <span className="material-symbols-outlined text-[#9db8b4] text-lg">search</span>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none text-white placeholder-[#9db8b4] text-sm w-full focus:ring-0 outline-none"
+                className="bg-transparent border-none text-white placeholder-[#9db8b4] text-sm w-full focus:ring-0 outline-none ml-2"
                 placeholder="Kanal ara..."
                 type="text"
               />
             </div>
+            {/* Cache Reset Button */}
+            <button
+              onClick={handleCacheReset}
+              disabled={isResettingCache || !credentials}
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#19e6c4]/70 text-[#19e6c4] hover:bg-[#19e6c4]/10 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              <span>Cache Yenile</span>
+            </button>
             <button className="relative p-2 rounded-lg bg-[#293836] hover:bg-[#3e524f] text-white transition-colors">
               <span className="material-symbols-outlined text-[20px]">notifications</span>
               <span className="absolute top-2 right-2 w-2 h-2 bg-[#19e6c4] rounded-full border border-[#293836]"></span>
@@ -524,7 +654,7 @@ const ChannelList = () => {
           {/* Headline & Filter Chips */}
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <h2 className="text-2xl font-bold text-white tracking-tight">
+              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-words">
                 {selectedCategory === 'all' 
                   ? 'Tüm Kanallar' 
                   : categories.find(c => c.category_id === selectedCategory)?.category_name || 'Kanallar'}
@@ -573,27 +703,64 @@ const ChannelList = () => {
 
           {/* Loading State */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-20 min-h-[400px]">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 border-4 border-[#19e6c4] border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-[#9db8b4] text-sm">Kanallar yükleniyor...</span>
+                {(credentials || m3uChannels.length > 0) && (
+                  <p className="text-[#9db8b4] text-xs mt-2">
+                    {sourceType === 'xtreme' ? 'Xtreme Code' : 'M3U'} bağlantısından kanallar getiriliyor...
+                  </p>
+                )}
               </div>
             </div>
           ) : error ? (
-            <div className="flex justify-center items-center py-20">
-              <div className="text-center">
-                <p className="text-red-400 mb-4">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="bg-primary text-background-dark px-6 py-2 rounded-lg font-bold"
-                >
-                  Tekrar Dene
-                </button>
+            <div className="flex flex-col justify-center items-center py-20 min-h-[400px]">
+              <div className="text-center max-w-md">
+                <div className="size-20 rounded-full bg-red-500/20 flex items-center justify-center mb-4 mx-auto">
+                  <span className="material-symbols-outlined text-4xl text-red-400">error</span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Bir Hata Oluştu</h3>
+                <p className="text-red-400 mb-6">{error}</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] px-6 py-2 rounded-lg font-bold transition-colors"
+                  >
+                    Tekrar Dene
+                  </button>
+                  <button
+                    onClick={() => navigate(sourceType === 'xtreme' ? '/xtreme-code-list' : '/m3u-list')}
+                    className="bg-[#293836] hover:bg-[#3e524f] text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                  >
+                    Hesaplara Dön
+                  </button>
+                </div>
               </div>
             </div>
           ) : filteredChannels.length === 0 ? (
-            <div className="flex justify-center items-center py-20">
-              <p className="text-[#9db8b4] text-sm">Kanal bulunamadı</p>
+            <div className="flex flex-col justify-center items-center py-20 min-h-[400px]">
+              <div className="mb-6">
+                <div className="size-20 rounded-full bg-[#293836] flex items-center justify-center mb-4 mx-auto">
+                  <span className="material-symbols-outlined text-4xl text-[#9db8b4]">tv_off</span>
+                </div>
+                <h3 className="text-xl font-bold text-white text-center mb-2">
+                  {searchQuery ? 'Arama sonucu bulunamadı' : 'Kanal bulunamadı'}
+                </h3>
+                <p className="text-[#9db8b4] text-sm text-center max-w-md">
+                  {searchQuery 
+                    ? `"${searchQuery}" için sonuç bulunamadı. Farklı bir arama terimi deneyin.`
+                    : 'Henüz kanal yüklenmedi veya seçili kategoride kanal bulunmuyor.'}
+                </p>
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-4 py-2 bg-[#19e6c4] hover:bg-[#14b89d] text-[#11211e] font-semibold rounded-lg transition-colors"
+                >
+                  Aramayı Temizle
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -603,7 +770,7 @@ const ChannelList = () => {
                   <div
                     key={channel.id}
                     onClick={() => handleChannelClick(channel)}
-                    className="group relative bg-[#1a2624] hover:bg-[#202e2c] border border-[#293836] hover:border-[#19e6c4]/50 rounded-xl p-4 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                    className="group relative bg-[#1a2624] hover:bg-[#202e2c] border border-[#293836] hover:border-[#19e6c4]/50 rounded-xl p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#19e6c4]/10 cursor-pointer"
                   >
                     <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
@@ -611,16 +778,17 @@ const ChannelList = () => {
                           e.stopPropagation();
                           alert(`${channel.name} favorilere eklendi!`);
                         }}
-                        className="text-white hover:text-[#19e6c4] bg-black/50 rounded-full p-1 backdrop-blur-sm"
+                        className="text-white hover:text-[#19e6c4] bg-black/50 rounded-full p-1.5 backdrop-blur-sm transition-colors"
+                        title="Favorilere Ekle"
                       >
                         <span className="material-symbols-outlined text-[18px]">favorite</span>
                       </button>
                     </div>
-                    <div className="aspect-square flex items-center justify-center bg-black/20 rounded-lg mb-3 p-4">
+                    <div className="aspect-square flex items-center justify-center bg-gradient-to-br from-[#293836] to-[#1a2624] rounded-lg mb-3 p-4 overflow-hidden">
                       {channel.logo ? (
                         <img
                           alt={`${channel.name} Logo`}
-                          className="w-full h-auto object-contain max-h-[60px]"
+                          className="w-full h-full object-contain max-h-[80px] group-hover:scale-110 transition-transform duration-300"
                           src={channel.logo}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -631,26 +799,30 @@ const ChannelList = () => {
                         />
                       ) : null}
                       {!channel.logo && (
-                        <div className="text-4xl font-bold text-white/20">
-                          {channel.name.charAt(0)}
+                        <div className="text-5xl font-bold text-white/30 group-hover:text-white/50 transition-colors">
+                          {channel.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col">
-                      <h3 className="text-white font-semibold text-sm truncate">{channel.name}</h3>
-                      <div className="flex items-center gap-1 mt-1">
+                    <div className="flex flex-col min-h-[60px]">
+                      <h3 className="text-white font-semibold text-sm leading-tight line-clamp-2 mb-1.5 group-hover:text-[#19e6c4] transition-colors">
+                        {channel.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-auto">
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
                             channel.status === 'live' ? 'bg-red-500 animate-pulse' : 'bg-gray-500'
                           }`}
                         ></span>
-                        <span className="text-[#9db8b4] text-xs">
+                        <span className="text-[#9db8b4] text-xs truncate">
                           {channel.status === 'live' ? 'Canlı' : 'Çevrimdışı'}
                         </span>
                       </div>
-                      <p className="text-[#9db8b4] text-xs mt-1 truncate group-hover:text-[#19e6c4] transition-colors">
-                        {channel.currentProgram}
-                      </p>
+                      {channel.currentProgram && (
+                        <p className="text-[#9db8b4] text-xs mt-1 truncate group-hover:text-[#19e6c4] transition-colors">
+                          {channel.currentProgram}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -666,7 +838,29 @@ const ChannelList = () => {
           )}
         </div>
       </main>
-      <Footer />
+      <div className="md:hidden">
+        <Footer />
+      </div>
+
+      {/* Coming Soon Modal */}
+      {showComingSoon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowComingSoon(false)}>
+          <div className="bg-[#1a2c29] border border-[#293836] rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="flex items-center justify-center size-16 rounded-full bg-primary/20 mb-4 mx-auto">
+                <span className="material-symbols-outlined text-4xl text-primary">schedule</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">{t('common.comingSoon')}</h3>
+              <button
+                onClick={() => setShowComingSoon(false)}
+                className="w-full px-6 py-3 bg-primary hover:bg-[#14b89d] text-[#11211e] font-bold rounded-lg transition-colors"
+              >
+                {t('common.ok')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

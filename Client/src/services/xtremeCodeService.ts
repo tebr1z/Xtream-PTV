@@ -167,7 +167,7 @@ export const connectXtremeCode = async (
 };
 
 /**
- * Canlı kategorileri getirir
+ * Canlı kategorileri getirir (Backend cache kullanarak)
  */
 export const getLiveCategories = async (
   serverUrl: string,
@@ -175,78 +175,41 @@ export const getLiveCategories = async (
   password: string
 ): Promise<any[]> => {
   try {
-    const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+    const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+    const cacheUrl = `${backendUrl}/api/xtreme-cache/categories?serverUrl=${encodeURIComponent(serverUrl)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
     
-    // Endpoint'leri dene - önce kaydedilmiş, sonra /api.php
-    const stored = localStorage.getItem('xtremeCodeCredentials');
-    const endpoints = ['/api.php', '/player_api.php', '/portal.php'];
-    let savedEndpoint: string | null = null;
+    const response = await fetch(cacheUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
-    if (stored) {
-      try {
-        const creds = JSON.parse(stored);
-        if (creds.apiEndpoint && endpoints.includes(creds.apiEndpoint)) {
-          savedEndpoint = creds.apiEndpoint;
-        }
-      } catch (e) {
-        // Ignore
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
     
-    // Endpoint sıralaması: önce kaydedilmiş, sonra /api.php
-    const endpointList = savedEndpoint 
-      ? [savedEndpoint, ...endpoints.filter(e => e !== savedEndpoint)]
-      : endpoints;
+    const result = await response.json();
     
-    for (const endpoint of endpointList) {
-      try {
-        const apiUrl = `${baseUrl}${endpoint}?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`;
-        
-        const response = await fetchWithProxy(apiUrl);
-        const responseText = await response.text();
-        
-        if (response.status === 404) {
-          // Bu endpoint çalışmadı, bir sonrakini dene
-          continue;
-        }
-        
-        if (response.status === 200 && responseText) {
+    if (result.success && result.data) {
+      // API endpoint'i kaydet (eğer varsa)
+      if (result.apiEndpoint) {
+        const stored = localStorage.getItem('xtremeCodeCredentials');
+        if (stored) {
           try {
-            const data = JSON.parse(responseText);
-            
-            // Başarılı endpoint'i kaydet
-            if (stored) {
-              try {
-                const creds = JSON.parse(stored);
-                creds.apiEndpoint = endpoint;
-                localStorage.setItem('xtremeCodeCredentials', JSON.stringify(creds));
-              } catch (e) {
-                // Ignore
-              }
-            }
-            
-            // Xtreme Code API format kontrolü
-            if (Array.isArray(data)) {
-              return data;
-            }
-            
-            if (data && typeof data === 'object' && 'result' in data && Array.isArray(data.result)) {
-              return data.result;
-            }
-            
-            return [];
+            const creds = JSON.parse(stored);
+            creds.apiEndpoint = result.apiEndpoint;
+            localStorage.setItem('xtremeCodeCredentials', JSON.stringify(creds));
           } catch (e) {
-            // JSON parse hatası, bir sonrakini dene
-            continue;
+            // Ignore
           }
         }
-      } catch (error) {
-        // Bu endpoint başarısız, bir sonrakini dene
-        continue;
       }
+      
+      return Array.isArray(result.data) ? result.data : [];
     }
     
-    throw new Error('Kategoriler alınamadı');
+    throw new Error(result.message || 'Kategoriler alınamadı');
   } catch (error) {
     console.error('getLiveCategories error:', error);
     throw error;
@@ -254,7 +217,7 @@ export const getLiveCategories = async (
 };
 
 /**
- * Canlı kanalları getirir
+ * Canlı kanalları getirir (Backend cache kullanarak)
  */
 export const getLiveStreams = async (
   serverUrl: string,
@@ -263,88 +226,45 @@ export const getLiveStreams = async (
   categoryId?: string
 ): Promise<any[]> => {
   try {
-    const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+    const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+    let cacheUrl = `${backendUrl}/api/xtreme-cache/streams?serverUrl=${encodeURIComponent(serverUrl)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
     
-    // Endpoint'leri dene - önce kaydedilmiş, sonra /api.php
-    const stored = localStorage.getItem('xtremeCodeCredentials');
-    const endpoints = ['/api.php', '/player_api.php', '/portal.php'];
-    let savedEndpoint: string | null = null;
-    
-    if (stored) {
-      try {
-        const creds = JSON.parse(stored);
-        if (creds.apiEndpoint && endpoints.includes(creds.apiEndpoint)) {
-          savedEndpoint = creds.apiEndpoint;
-        }
-      } catch (e) {
-        // Ignore
-      }
+    if (categoryId && categoryId !== 'all' && categoryId !== 'Tümü') {
+      cacheUrl += `&categoryId=${encodeURIComponent(categoryId)}`;
     }
     
-    // Endpoint sıralaması: önce kaydedilmiş, sonra /api.php
-    const endpointList = savedEndpoint 
-      ? [savedEndpoint, ...endpoints.filter(e => e !== savedEndpoint)]
-      : endpoints;
+    const response = await fetch(cacheUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
-    for (const endpoint of endpointList) {
-      try {
-        let apiUrl = `${baseUrl}${endpoint}?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
-        
-        if (categoryId && categoryId !== 'all' && categoryId !== 'Tümü') {
-          apiUrl += `&category_id=${encodeURIComponent(categoryId)}`;
-        }
-        
-        const response = await fetchWithProxy(apiUrl);
-        const responseText = await response.text();
-        
-        if (response.status === 404) {
-          // Bu endpoint çalışmadı, bir sonrakini dene
-          continue;
-        }
-        
-        if (response.status === 200 && responseText) {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.success && result.data) {
+      // API endpoint'i kaydet (eğer varsa)
+      if (result.apiEndpoint) {
+        const stored = localStorage.getItem('xtremeCodeCredentials');
+        if (stored) {
           try {
-            const data = JSON.parse(responseText);
-            
-            // Backend'den gelen error kontrolü
-            if (data && typeof data === 'object' && 'error' in data) {
-              // Backend'den hata geldi, bir sonrakini dene
-              continue;
-            }
-            
-            // Başarılı endpoint'i kaydet
-            if (stored) {
-              try {
-                const creds = JSON.parse(stored);
-                creds.apiEndpoint = endpoint;
-                localStorage.setItem('xtremeCodeCredentials', JSON.stringify(creds));
-              } catch (e) {
-                // Ignore
-              }
-            }
-            
-            // Xtreme Code API format kontrolü
-            if (Array.isArray(data)) {
-              return data;
-            }
-            
-            if (data && typeof data === 'object' && 'result' in data && Array.isArray(data.result)) {
-              return data.result;
-            }
-            
-            return [];
+            const creds = JSON.parse(stored);
+            creds.apiEndpoint = result.apiEndpoint;
+            localStorage.setItem('xtremeCodeCredentials', JSON.stringify(creds));
           } catch (e) {
-            // JSON parse hatası, bir sonrakini dene
-            continue;
+            // Ignore
           }
         }
-      } catch (error) {
-        // Bu endpoint başarısız, bir sonrakini dene
-        continue;
       }
+      
+      return Array.isArray(result.data) ? result.data : [];
     }
     
-    throw new Error('Kanallar alınamadı');
+    throw new Error(result.message || 'Kanallar alınamadı');
   } catch (error) {
     console.error('getLiveStreams error:', error);
     throw error;

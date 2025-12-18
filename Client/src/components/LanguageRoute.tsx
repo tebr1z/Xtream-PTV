@@ -1,6 +1,9 @@
 import { Route, Navigate, useParams, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
+import EmailVerificationBanner from './EmailVerificationBanner';
+import BetaBanner from './BetaBanner';
+import BugReportButton from './BugReportButton';
 
 const LanguageWrapper = () => {
   const { lang } = useParams<{ lang: string }>();
@@ -15,7 +18,14 @@ const LanguageWrapper = () => {
     }
   }, [lang, i18n]);
 
-  return <Outlet />;
+  return (
+    <>
+      <EmailVerificationBanner />
+      <BetaBanner />
+      <BugReportButton />
+      <Outlet />
+    </>
+  );
 };
 
 const LanguageRoutes = () => {
@@ -24,7 +34,7 @@ const LanguageRoutes = () => {
 
   // Eğer geçersiz bir dil kodu varsa, varsayılan dile yönlendir
   if (lang && !supportedLangs.includes(lang)) {
-    return <Navigate to="/tr" replace />;
+    return <Navigate to="/az" replace />;
   }
 
   return <LanguageWrapper />;

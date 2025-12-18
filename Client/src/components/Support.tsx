@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Footer from './Footer';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -7,19 +7,31 @@ import LanguageSwitcher from './LanguageSwitcher';
 const Support = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const params = useParams<{ lang?: string }>();
+  const [searchParams] = useSearchParams();
+  const lang = params.lang || 'az';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    category: 'general',
     subject: '',
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  // URL'den kategori parametresini al
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setFormData(prev => ({ ...prev, category: categoryParam }));
+    }
+  }, [searchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+    if (!formData.name || !formData.email || !formData.category || !formData.subject || !formData.message) {
       setSubmitStatus('error');
       return;
     }
@@ -27,16 +39,37 @@ const Support = () => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
-    // Simüle edilmiş gönderim (gerçek uygulamada backend'e gönderilir)
-    setTimeout(() => {
+    try {
+      const backendUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/support`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          lang,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.success) {
+        setSubmitStatus('success');
+        setFormData({ name: '', email: '', category: 'general', subject: '', message: '' });
+        setTimeout(() => {
+          setSubmitStatus('idle');
+        }, 3000);
+      } else {
+        console.error('Support submit error:', data);
+        setSubmitStatus('error');
+      }
+    } catch (err) {
+      console.error('Support submit exception:', err);
+      setSubmitStatus('error');
+    } finally {
       setIsSubmitting(false);
-      setSubmitStatus('success');
-      setFormData({ name: '', email: '', subject: '', message: '' });
-      
-      setTimeout(() => {
-        setSubmitStatus('idle');
-      }, 3000);
-    }, 1000);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -57,19 +90,33 @@ const Support = () => {
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b border-[#293836] bg-[#1a2c29]/80 backdrop-blur-md">
           <div className="px-4 md:px-10 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/')}
-                className="size-8 text-primary hover:opacity-80 transition-opacity"
-              >
+            <button
+              onClick={() => navigate(`/${lang}`)}
+              className="flex items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="size-8 text-primary">
                 <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
                 </svg>
-              </button>
+              </div>
               <h2 className="text-xl font-bold tracking-tight text-white">{t('common.appName')}</h2>
-            </div>
+            </button>
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
+              <button
+                onClick={() => {
+                  const user = localStorage.getItem('user');
+                  if (user) {
+                    navigate(`/${lang}/support/tickets`);
+                  } else {
+                    navigate(`/${lang}/login`);
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">inbox</span>
+                <span>{t('support.myTickets') || 'My Tickets'}</span>
+              </button>
               <button
                 onClick={() => navigate('/')}
                 className="flex items-center gap-2 text-[#9eb7a8] hover:text-white transition-colors"
@@ -107,7 +154,8 @@ const Support = () => {
                 <h3 className="text-xl font-bold text-white">Xtreme Code Desteği</h3>
               </div>
               <p className="text-[#9eb7a8] text-sm mb-4">
-                Xtreme Code API bağlantı sorunları, hesap yönetimi ve kanal listesi ile ilgili yardım.
+                Xtreme Code API bağlantı sorunları, hesap yönetimi, kanal listesi ve IP engelleme riskini azaltan
+                cache/performans ayarları ile ilgili yardım.
               </p>
               <ul className="space-y-2 text-sm text-[#9eb7a8]">
                 <li className="flex items-center gap-2">
@@ -120,7 +168,11 @@ const Support = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-base">check_circle</span>
-                  <span>Kanal listesi sorunları</span>
+                  <span>Kanal listesi ve canlı TV akış sorunları</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-base">check_circle</span>
+                  <span>Cache ve IP ban koruma ayarları</span>
                 </li>
               </ul>
             </div>
@@ -188,7 +240,8 @@ const Support = () => {
                 <h3 className="text-xl font-bold text-white">Teknik Destek</h3>
               </div>
               <p className="text-[#9eb7a8] text-sm mb-4">
-                Genel teknik sorunlar, hata raporları ve özellik önerileri.
+                Genel teknik sorunlar, hata raporları, çok dilli arayüz, IP tabanlı dil algılama, çerez politikası ve
+                hukuki metinler (Hizmet Şartları, Gizlilik, Çerez Politikası) ile ilgili tüm geri bildirimler.
               </p>
               <ul className="space-y-2 text-sm text-[#9eb7a8]">
                 <li className="flex items-center gap-2">
@@ -197,11 +250,11 @@ const Support = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-yellow-400 text-base">check_circle</span>
-                  <span>Özellik önerileri</span>
+                  <span>Özellik önerileri ve kullanıcı deneyimi geliştirmeleri</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-yellow-400 text-base">check_circle</span>
-                  <span>Performans sorunları</span>
+                  <span>Performans, cache ve çok dilli/SEO yapılandırmaları</span>
                 </li>
               </ul>
             </div>
@@ -258,26 +311,42 @@ const Support = () => {
               </div>
 
               <div>
+                <label htmlFor="category" className="block text-sm font-medium text-white mb-2">
+                  {t('support.category')} *
+                </label>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="general">{t('support.categoryGeneral')}</option>
+                  <option value="bug_report">{t('support.categoryBugReport')}</option>
+                  <option value="xtreme_code">{t('support.categoryXtremeCode')}</option>
+                  <option value="m3u">{t('support.categoryM3U')}</option>
+                  <option value="account">{t('support.categoryAccount')}</option>
+                  <option value="technical">{t('support.categoryTechnical')}</option>
+                  <option value="feature_request">{t('support.categoryFeatureRequest')}</option>
+                  <option value="other">{t('support.categoryOther')}</option>
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="subject" className="block text-sm font-medium text-white mb-2">
                   {t('support.subject')} *
                 </label>
-                <select
+                <input
+                  type="text"
                   id="subject"
                   name="subject"
                   value={formData.subject}
                   onChange={handleInputChange}
                   required
                   className="w-full bg-[#11211e] border border-[#293836] text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary transition-colors"
-                >
-                  <option value="">{t('support.subject')}</option>
-                  <option value="xtreme-code">{t('support.xtremeCodeSupport')}</option>
-                  <option value="m3u">{t('support.m3uSupport')}</option>
-                  <option value="account">{t('support.contactForm')}</option>
-                  <option value="technical">{t('support.contactForm')}</option>
-                  <option value="feature">{t('support.contactForm')}</option>
-                  <option value="bug">{t('support.contactForm')}</option>
-                  <option value="other">{t('common.other')}</option>
-                </select>
+                  placeholder={t('support.subjectPlaceholder')}
+                />
               </div>
 
               <div>

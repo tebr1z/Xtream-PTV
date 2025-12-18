@@ -3,6 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { getSavedAccounts } from '../services/xtremeCodeService';
 import { getSavedM3UAccounts } from '../services/m3uService';
 import Footer from './Footer';
+import SettingsView from './SettingsView';
+import SupportTicketsView from './SupportTicketsView';
+
+type FooterSettings = {
+  companyName: string;
+  copyrightYear: string;
+  version: string;
+  description?: string;
+  socialLinks?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    youtube?: string;
+  };
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
+};
 
 type Subscription = {
   id: string;
@@ -34,6 +55,35 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Settings state
+  const [footerSettings, setFooterSettings] = useState<FooterSettings>({
+    companyName: 'IPTV Manager',
+    copyrightYear: '2023 - 2026',
+    version: 'V 2.1.0 (Beta)',
+    description: 'Professional IPTV Management Platform',
+    socialLinks: {
+      facebook: '',
+      twitter: '',
+      instagram: '',
+      linkedin: '',
+      youtube: ''
+    },
+    contactInfo: {
+      email: '',
+      phone: '',
+      address: ''
+    }
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Support state
+  const [supportTickets, setSupportTickets] = useState<any[]>([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [supportStatusFilter, setSupportStatusFilter] = useState<string>('all');
+  const [adminNotes, setAdminNotes] = useState('');
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
 
   // Role kontrolü ve kullanıcı yükleme
   useEffect(() => {
@@ -220,6 +270,107 @@ const AdminPanel = () => {
     navigate('/');
   };
 
+  // Support ticket yükleme
+  const loadSupportTickets = async () => {
+    setSupportLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/support?status=${supportStatusFilter === 'all' ? '' : supportStatusFilter}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSupportTickets(data.tickets || []);
+      }
+    } catch (err) {
+      console.error('Load support tickets error:', err);
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
+  // Support ticket güncelleme
+  const updateSupportTicket = async (ticketId: string, status?: string, notes?: string) => {
+    setIsUpdatingTicket(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (notes !== undefined) {
+        updateData.adminNotes = notes;
+        // Eğer cevap veriliyorsa ve status belirtilmemişse, status'u "in_progress" yap
+        if (notes && notes.trim() && !status) {
+          updateData.status = 'in_progress';
+        }
+      }
+
+      const response = await fetch(`${backendUrl}/api/support/${ticketId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Önce ticket listesini yenile
+        await loadSupportTickets();
+        
+        // Eğer güncellenen ticket seçiliyse, güncellenmiş ticket'ı tekrar yükle
+        if (selectedTicket?.supportId === ticketId) {
+          try {
+            const ticketResponse = await fetch(`${backendUrl}/api/support/${ticketId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            const ticketData = await ticketResponse.json();
+            if (ticketData.success && ticketData.ticket) {
+              // Ticket'ı yükle ama adminNotes field'ını kaldır (yeni mesaj için)
+              const cleanTicket = { ...ticketData.ticket };
+              delete cleanTicket.adminNotes; // adminNotes'u kaldır, sadece adminReplies kullan
+              setSelectedTicket(cleanTicket);
+              // Her zaman adminNotes'u temizle (yeni mesaj için)
+              setAdminNotes('');
+            }
+          } catch (err) {
+            console.error('Failed to reload ticket:', err);
+            // Hata olsa bile data.ticket'ı kullan
+            if (data.ticket) {
+              const cleanTicket = { ...data.ticket };
+              delete cleanTicket.adminNotes; // adminNotes'u kaldır, sadece adminReplies kullan
+              setSelectedTicket(cleanTicket);
+              setAdminNotes('');
+            }
+          }
+        }
+        
+        setAdminNotes('');
+        if (notes && notes.trim()) {
+          alert('Cevap başarıyla gönderildi ve kullanıcıya mail gönderildi');
+        } else {
+          alert('Destek talebi başarıyla güncellendi');
+        }
+      } else {
+        alert(data.message || 'Güncelleme başarısız');
+      }
+    } catch (err) {
+      console.error('Update support ticket error:', err);
+      alert('Güncelleme sırasında hata oluştu');
+    } finally {
+      setIsUpdatingTicket(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const styles = {
       Aktif: 'bg-green-500/10 text-green-500 border-green-500/20',
@@ -303,6 +454,20 @@ const AdminPanel = () => {
           >
             <span className="material-symbols-outlined text-xl">movie</span>
             <span className="text-sm font-medium">İçerik Yönetimi</span>
+          </a>
+          <a
+            onClick={() => {
+              setActiveTab('support');
+              loadSupportTickets();
+            }}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors cursor-pointer ${
+              activeTab === 'support'
+                ? 'bg-[#19e6c4]/10 text-[#19e6c4]'
+                : 'text-[#9db8b4] hover:bg-[#293836] hover:text-white'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-xl ${activeTab === 'support' ? 'fill' : ''}`}>support_agent</span>
+            <span className="text-sm font-medium">Destek Talepleri</span>
           </a>
           <a
             onClick={() => setActiveTab('settings')}
@@ -405,7 +570,28 @@ const AdminPanel = () => {
 
         {/* SCROLLABLE CONTENT */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {activeTab === 'anonymous' ? (
+          {activeTab === 'settings' ? (
+            <SettingsView
+              footerSettings={footerSettings}
+              setFooterSettings={setFooterSettings}
+              isSaving={isSavingSettings}
+              setIsSaving={setIsSavingSettings}
+            />
+          ) : activeTab === 'support' ? (
+            <SupportTicketsView
+              tickets={supportTickets}
+              loading={supportLoading}
+              selectedTicket={selectedTicket}
+              setSelectedTicket={setSelectedTicket}
+              statusFilter={supportStatusFilter}
+              setStatusFilter={setSupportStatusFilter}
+              adminNotes={adminNotes}
+              setAdminNotes={setAdminNotes}
+              onUpdate={updateSupportTicket}
+              onLoad={loadSupportTickets}
+              isUpdating={isUpdatingTicket}
+            />
+          ) : activeTab === 'anonymous' ? (
             <AnonymousAccountsView />
           ) : activeTab === 'users' ? (
             <UserListView
@@ -960,9 +1146,72 @@ const UserListView = ({
     }
   };
 
-  const handleDelete = (userId: string) => {
-    if (confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) {
-      alert(`Kullanıcı silindi: ${userId}`);
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`"${userName}" kullanıcısını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Kullanıcı başarıyla silindi.');
+        await loadUsers(); // Kullanıcı listesini yenile
+      } else {
+        alert(data.message || 'Kullanıcı silinemedi.');
+      }
+    } catch (err) {
+      console.error('Delete user error:', err);
+      alert('Kullanıcı silinirken hata oluştu.');
+    }
+  };
+
+  const handleBanUser = async (userId: string, userName: string, isActive: boolean) => {
+    const action = isActive ? 'banlamak' : 'banı kaldırmak';
+    if (!confirm(`"${userName}" kullanıcısını ${action} istediğinizden emin misiniz?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${backendUrl}/api/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: !isActive }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'İşlem başarısız.' }));
+        alert(errorData.message || 'İşlem başarısız.');
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message || `Kullanıcı ${isActive ? 'banlandı' : 'banı kaldırıldı'}.`);
+        await loadUsers(); // Kullanıcı listesini yenile
+      } else {
+        alert(data.message || 'İşlem başarısız.');
+      }
+    } catch (err) {
+      console.error('Ban user error:', err);
+      alert('İşlem sırasında hata oluştu.');
     }
   };
 
@@ -1136,9 +1385,7 @@ const UserListView = ({
                       <select
                         value={user.role || 'user'}
                         onChange={(e) => {
-                          if (onRoleChange) {
-                            onRoleChange(user.id, e.target.value as 'admin' | 'user');
-                          }
+                          handleRoleChange(user.id, e.target.value as 'admin' | 'user');
                         }}
                         className="bg-[#11211e] border border-[#293836] text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-[#19e6c4]"
                       >
@@ -1174,6 +1421,46 @@ const UserListView = ({
                           title="IPTV Paketi Ata/Düzenle"
                         >
                           <span className="material-symbols-outlined text-lg">card_giftcard</span>
+                        </button>
+                        <button
+                          onClick={() => handleBanUser(user.id, user.name, user.status === 'Aktif')}
+                          className={`rounded p-1.5 transition-colors ${
+                            user.status === 'Aktif'
+                              ? 'text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
+                              : 'text-green-400 hover:bg-green-500/20 hover:text-green-300'
+                          }`}
+                          title={user.status === 'Aktif' ? 'Kullanıcıyı Banla' : 'Banı Kaldır'}
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            {user.status === 'Aktif' ? 'block' : 'check_circle'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                          title="Kullanıcıyı Sil"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                        <button
+                          onClick={() => handleBanUser(user.id, user.name, user.status === 'Aktif')}
+                          className={`rounded p-1.5 transition-colors ${
+                            user.status === 'Aktif'
+                              ? 'text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
+                              : 'text-green-400 hover:bg-green-500/20 hover:text-green-300'
+                          }`}
+                          title={user.status === 'Aktif' ? 'Kullanıcıyı Banla' : 'Banı Kaldır'}
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            {user.status === 'Aktif' ? 'block' : 'check_circle'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          className="rounded p-1.5 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                          title="Kullanıcıyı Sil"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
                         </button>
                         <button
                           onClick={() => handleDelete(user.id)}

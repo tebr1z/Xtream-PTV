@@ -22,17 +22,17 @@ const TermsOfService = () => {
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b border-[#293836] bg-[#1a2c29]/80 backdrop-blur-md">
           <div className="px-4 md:px-10 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/')}
-                className="size-8 text-primary hover:opacity-80 transition-opacity"
-              >
+            <button
+              onClick={() => navigate(`/${lang}`)}
+              className="flex items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="size-8 text-primary">
                 <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                   <path clipRule="evenodd" d="M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z" fill="currentColor" fillRule="evenodd"></path>
                 </svg>
-              </button>
+              </div>
               <h2 className="text-xl font-bold tracking-tight text-white">{t('common.appName')}</h2>
-            </div>
+            </button>
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
               <button

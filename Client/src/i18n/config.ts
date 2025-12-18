@@ -18,13 +18,15 @@ try {
         ru: { translation: ruTranslations },
         az: { translation: azTranslations },
       },
-      fallbackLng: 'tr',
+      // Varsayılan ve fallback dili Azerbaycan yap
+      fallbackLng: 'az',
       defaultNS: 'translation',
       interpolation: {
         escapeValue: false,
       },
       detection: {
-        order: ['localStorage', 'navigator', 'htmlTag'],
+        // Önce localStorage, sonra URL, sonra tarayıcı
+        order: ['localStorage', 'path', 'navigator', 'htmlTag'],
         caches: ['localStorage'],
       },
       react: {
@@ -43,8 +45,8 @@ try {
         ru: { translation: ruTranslations },
         az: { translation: azTranslations },
       },
-      fallbackLng: 'tr',
-      lng: 'tr',
+      fallbackLng: 'az',
+      lng: 'az',
       defaultNS: 'translation',
       interpolation: {
         escapeValue: false,

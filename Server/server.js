@@ -6,6 +6,9 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import accountRoutes from './routes/accounts.js';
 import userAccountRoutes from './routes/userAccounts.js';
+import settingsRoutes from './routes/settings.js';
+import xtremeCacheRoutes from './routes/xtremeCache.js';
+import supportRoutes from './routes/support.js';
 import dotenv from 'dotenv';
 
 // .env dosyasını yükle
@@ -50,6 +53,15 @@ app.use('/api/accounts', accountRoutes);
 
 // User account routes (logged in users)
 app.use('/api/user-accounts', userAccountRoutes);
+
+// Settings routes
+app.use('/api/settings', settingsRoutes);
+
+// Xtreme Code Cache routes
+app.use('/api/xtreme-cache', xtremeCacheRoutes);
+
+// Support routes (destek formu e-posta)
+app.use('/api/support', supportRoutes);
 
 // Xtreme Code API Proxy endpoint
 app.get('/api/xtreme', async (req, res) => {
@@ -160,5 +172,6 @@ app.listen(PORT, () => {
   console.log(`🚀 IPTV Proxy Server running on http://localhost:${PORT}`);
   console.log(`📡 Auth routes: http://localhost:${PORT}/api/auth`);
   console.log(`👥 User routes: http://localhost:${PORT}/api/users`);
+  console.log(`⚙️  Settings routes: http://localhost:${PORT}/api/settings`);
   console.log(`🔍 Health check: http://localhost:${PORT}/health`);
 });
